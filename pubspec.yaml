@@ -1,0 +1,152 @@
+name: flutter_finance_assistant
+description: "AI-Powered Personal Finance Assistant - Intelligent expense tracking with ML-powered categorization, smart budgeting, and conversational AI insights."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # ══════════════════════════════════════════════════════════════════════════════
+  # UI & Design
+  # ══════════════════════════════════════════════════════════════════════════════
+  cupertino_icons: ^1.0.8          # iOS style icons
+  flutter_svg: ^2.0.10+1           # SVG rendering
+  lottie: ^3.1.2                   # Lottie animations
+  shimmer: ^3.0.0                  # Loading shimmer effect
+  fl_chart: ^0.69.2                # Charts and graphs
+  cached_network_image: ^3.4.1     # Image caching
+  flutter_animate: ^4.5.0          # Declarative animations
+
+  # ══════════════════════════════════════════════════════════════════════════════
+  # State Management & Architecture
+  # ══════════════════════════════════════════════════════════════════════════════
+  flutter_bloc: ^8.1.6             # BLoC state management
+  bloc: ^8.1.4                     # BLoC core
+  equatable: ^2.0.5                # Value equality for states/events
+  dartz: ^0.10.1                   # Functional programming (Either, Option)
+  get_it: ^8.0.2                   # Dependency injection
+  injectable: ^2.5.0               # DI code generation
+
+  # ══════════════════════════════════════════════════════════════════════════════
+  # Local Database (Offline-First)
+  # ══════════════════════════════════════════════════════════════════════════════
+  drift: ^2.22.1                   # Type-safe SQLite (formerly Moor)
+  sqlite3_flutter_libs: ^0.5.28    # SQLite binaries
+  path_provider: ^2.1.4            # File system paths
+  path: ^1.9.0                     # Path manipulation
+
+  # ══════════════════════════════════════════════════════════════════════════════
+  # Firebase Services
+  # ══════════════════════════════════════════════════════════════════════════════
+  firebase_core: ^3.8.0            # Firebase core
+  firebase_auth: ^5.3.3            # Authentication
+  cloud_firestore: ^5.5.0          # Cloud database
+  firebase_storage: ^12.3.6        # File storage
+  firebase_analytics: ^11.3.6      # Analytics
+  firebase_crashlytics: ^4.1.6     # Crash reporting
+  firebase_messaging: ^15.1.6      # Push notifications
+
+  # ══════════════════════════════════════════════════════════════════════════════
+  # Social Authentication
+  # ══════════════════════════════════════════════════════════════════════════════
+  google_sign_in: ^6.2.2           # Google Sign-In
+  sign_in_with_apple: ^6.1.4       # Apple Sign-In
+  crypto: ^3.0.6                   # Cryptographic functions for Apple Sign-In
+
+  # ══════════════════════════════════════════════════════════════════════════════
+  # AI & Machine Learning
+  # ══════════════════════════════════════════════════════════════════════════════
+  google_generative_ai: ^0.4.6     # Gemini API
+  # dart_openai: ^5.1.0            # OpenAI GPT-4 (uncomment when needed)
+  google_mlkit_text_recognition: ^0.14.0  # OCR for receipts
+  tflite_flutter: ^0.11.0          # TensorFlow Lite
+
+  # ══════════════════════════════════════════════════════════════════════════════
+  # Camera & Image Processing
+  # ══════════════════════════════════════════════════════════════════════════════
+  camera: ^0.11.0+2                # Camera access
+  image_picker: ^1.1.2             # Gallery/camera picker
+  image_cropper: ^8.0.2            # Image cropping
+
+  # ══════════════════════════════════════════════════════════════════════════════
+  # Networking & Data
+  # ══════════════════════════════════════════════════════════════════════════════
+  dio: ^5.7.0                      # HTTP client
+  connectivity_plus: ^6.1.0        # Network connectivity
+  json_annotation: ^4.9.0          # JSON serialization annotations
+
+  # ══════════════════════════════════════════════════════════════════════════════
+  # Local Storage & Security
+  # ══════════════════════════════════════════════════════════════════════════════
+  shared_preferences: ^2.3.3       # Key-value storage
+  flutter_secure_storage: ^9.2.2   # Encrypted storage
+  local_auth: ^2.3.0               # Biometric authentication
+
+  # ══════════════════════════════════════════════════════════════════════════════
+  # Utilities
+  # ══════════════════════════════════════════════════════════════════════════════
+  intl: ^0.19.0                    # Internationalization & date formatting
+  uuid: ^4.5.1                     # UUID generation
+  url_launcher: ^6.3.1             # Open URLs
+  share_plus: ^10.1.2              # Share content
+  permission_handler: ^11.3.1      # Runtime permissions
+  package_info_plus: ^8.1.1        # App info
+  device_info_plus: ^11.1.1        # Device info
+  logger: ^2.4.0                   # Logging utility
+
+  # ══════════════════════════════════════════════════════════════════════════════
+  # Navigation
+  # ══════════════════════════════════════════════════════════════════════════════
+  go_router: ^14.6.2               # Declarative routing
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # ══════════════════════════════════════════════════════════════════════════════
+  # Code Quality & Linting
+  # ══════════════════════════════════════════════════════════════════════════════
+  flutter_lints: ^5.0.0            # Recommended lints
+  very_good_analysis: ^6.0.0       # Stricter analysis rules
+
+  # ══════════════════════════════════════════════════════════════════════════════
+  # Code Generation
+  # ══════════════════════════════════════════════════════════════════════════════
+  build_runner: ^2.4.13            # Code generation runner
+  drift_dev: ^2.22.1               # Drift code generator
+  json_serializable: ^6.8.0        # JSON serialization generator
+  injectable_generator: ^2.6.2     # DI code generator
+  freezed: ^2.5.7                  # Immutable classes generator
+  freezed_annotation: ^2.4.4       # Freezed annotations
+
+  # ══════════════════════════════════════════════════════════════════════════════
+  # Testing
+  # ══════════════════════════════════════════════════════════════════════════════
+  bloc_test: ^9.1.7                # BLoC testing
+  mocktail: ^1.0.4                 # Mocking library
+  fake_cloud_firestore: ^3.0.3     # Firestore mocking
+
+flutter:
+  uses-material-design: true
+
+  # assets:
+  #   - assets/images/
+  #   - assets/icons/
+  #   - assets/animations/
+  #   - assets/models/
+
+  # fonts:
+  #   - family: Inter
+  #     fonts:
+  #       - asset: assets/fonts/Inter-Regular.ttf
+  #         weight: 400
+  #       - asset: assets/fonts/Inter-Medium.ttf
+  #         weight: 500
+  #       - asset: assets/fonts/Inter-SemiBold.ttf
+  #         weight: 600
+  #       - asset: assets/fonts/Inter-Bold.ttf
+  #         weight: 700

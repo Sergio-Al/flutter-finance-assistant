@@ -1,0 +1,2184 @@
+---
+description: Rules for creating Flutter components in the Finance Assistant app
+globs: ["lib/**/*.dart"]
+alwaysApply: true
+---
+
+# Component Creation Rules
+
+When creating new components for the Finance Assistant app, follow these guidelines.
+
+---
+
+## Widget Creation
+
+### File Location
+- **Reusable widgets**: `lib/presentation/widgets/`
+- **Screen-specific widgets**: `lib/presentation/screens/{feature}/widgets/`
+
+### Widget Template
+
+```dart
+import 'package:flutter/material.dart';
+
+/// Brief description of what the widget does.
+/// 
+/// Example usage:
+/// ```dart
+/// WidgetName(
+///   param1: value1,
+///   onAction: () {},
+/// )
+/// ```
+class WidgetName extends StatelessWidget {
+  /// Description of param1
+  final Type param1;
+  
+  /// Callback when action occurs
+  final VoidCallback? onAction;
+
+  const WidgetName({
+    super.key,
+    required this.param1,
+    this.onAction,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      // Widget implementation
+    );
+  }
+}
+```
+
+### Widget Rules
+1. Always use `const` constructor when possible
+2. Document public parameters with `///` comments
+3. Access theme via `Theme.of(context)` - never hardcode colors
+4. Use `isDark` check for dark mode variations
+5. Prefer composition over inheritance
+6. Keep widgets under 150 lines - extract sub-widgets if larger
+
+---
+
+## Bottom Sheet Creation
+
+### Modal Bottom Sheet Pattern
+Use for forms, pickers, and creation flows that return data.
+
+```dart
+/// Show the bottom sheet and get result
+final result = await showModalBottomSheet<ResultType>(
+  context: context,
+  isScrollControlled: true,  // Allow full height
+  backgroundColor: Colors.transparent,  // For custom styling
+  builder: (sheetContext) => BlocProvider.value(
+    value: context.read<FeatureBloc>(),  // Pass BLoC
+    child: FeatureSheet(userId: userId),
+  ),
+);
+
+if (result != null) {
+  // Handle returned data
+}
+```
+
+### Bottom Sheet Template
+**Location**: `lib/presentation/widgets/{feature}_sheet.dart`
+
+```dart
+class FeatureSheet extends StatefulWidget {
+  final String userId;
+  final FeatureType? initialType;
+
+  const FeatureSheet({super.key, required this.userId, this.initialType});
+
+  @override
+  State<FeatureSheet> createState() => _FeatureSheetState();
+}
+
+class _FeatureSheetState extends State<FeatureSheet> {
+  final _formKey = GlobalKey<FormState>();
+  // Form fields...
+  bool _isSubmitting = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
+
+    return BlocListener<FeatureBloc, FeatureState>(
+      listener: (context, state) {
+        if (state is FeatureOperationSuccess && state.operation == OperationType.create) {
+          Navigator.pop(context, state.feature);  // Return created item
+        }
+      },
+      child: Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.9,
+        ),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Padding(
+          padding: EdgeInsets.only(bottom: bottomPadding),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Handle bar
+              _buildHandle(isDark),
+              // Header with close button
+              _buildHeader(context, isDark),
+              const Divider(height: 1),
+              // Form content
+              Flexible(child: _buildForm(context, isDark)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+```
+
+### Nested Bottom Sheet Navigation
+When opening a bottom sheet from another bottom sheet, pass the parent context:
+
+```dart
+class _PickerSheet extends StatelessWidget {
+  final BuildContext parentContext;  // Parent's context for nested navigation
+  final ValueChanged<Item> onItemSelected;
+  
+  Widget _buildAddItemTile(BuildContext context) {
+    return ListTile(
+      onTap: () async {
+        Navigator.pop(context);  // Close current sheet first
+        
+        // Use parentContext (still valid) for next sheet
+        final newItem = await showModalBottomSheet<Item>(
+          context: parentContext,
+          isScrollControlled: true,
+          builder: (ctx) => CreateItemSheet(),
+        );
+        
+        if (newItem != null) {
+          onItemSelected(newItem);
+        }
+      },
+    );
+  }
+}
+```
+
+### Bottom Sheet Rules
+1. Use `isScrollControlled: true` for forms with keyboards
+2. Add `viewInsets.bottom` padding for keyboard
+3. Limit height to `maxHeight: 0.9 * screenHeight`
+4. Pass `BlocProvider.value` to share BLoC with sheet
+5. Use `BlocListener` to return data on success
+6. For nested sheets, pass parent context separately
+
+---
+
+## Icon Picker Pattern
+
+### IconConstants Usage
+**Location**: `lib/core/constants/icon_constants.dart`
+
+```dart
+// Get icon by name
+final icon = IconConstants.getIcon('shopping_cart');
+
+// Get all grouped icons
+final groups = IconConstants.groupedIcons;
+// Returns: {'Shopping': ['shopping_cart', 'store', ...], ...}
+
+// Check if icon exists
+if (IconConstants.allIcons.containsKey(iconName)) { ... }
+```
+
+### IconPickerField Usage
+Inline form field for icon selection:
+
+```dart
+IconPickerField(
+  selectedIcon: _selectedIconName,
+  onIconSelected: (iconName) => setState(() => _selectedIconName = iconName),
+  label: 'Icon',
+)
+```
+
+### IconPickerBottomSheet Usage
+Full-screen picker with search:
+
+```dart
+final selectedIcon = await IconPickerBottomSheet.show(
+  context: context,
+  selectedIcon: currentIconName,
+);
+
+if (selectedIcon != null) {
+  setState(() => _iconName = selectedIcon);
+}
+```
+
+---
+
+## Screen Creation
+
+### File Structure
+```
+lib/presentation/screens/{feature}/
+├── {feature}_screen.dart       # Main screen
+├── {feature}.dart              # Barrel export
+└── widgets/                    # Screen-specific widgets
+    ├── widget_one.dart
+    └── widget_two.dart
+```
+
+### Screen Template
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_finance_assistant/core/di/injection_container.dart';
+
+/// Screen description
+class FeatureScreen extends StatelessWidget {
+  const FeatureScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (context) => getIt<FeatureBloc>()..add(FeatureLoadRequested()),
+      child: const _FeatureView(),
+    );
+  }
+}
+
+class _FeatureView extends StatelessWidget {
+  const _FeatureView();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Feature Title'),
+      ),
+      body: BlocBuilder<FeatureBloc, FeatureState>(
+        builder: (context, state) {
+          return switch (state) {
+            FeatureInitial() => const SizedBox.shrink(),
+            FeatureLoading() => const Center(child: CircularProgressIndicator()),
+            FeatureLoaded(:final data) => _FeatureContent(data: data),
+            FeatureError(:final message) => Center(child: Text(message)),
+          };
+        },
+      ),
+    );
+  }
+}
+
+class _FeatureContent extends StatelessWidget {
+  final FeatureData data;
+  
+  const _FeatureContent({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        // Content widgets
+      ],
+    );
+  }
+}
+```
+
+---
+
+## BLoC Creation
+
+### File Structure
+```
+lib/presentation/bloc/{feature}/
+├── {feature}_bloc.dart
+├── {feature}_event.dart
+├── {feature}_state.dart
+└── {feature}.dart              # Barrel export
+```
+
+### Event Template
+
+```dart
+part of '{feature}_bloc.dart';
+
+sealed class FeatureEvent {
+  const FeatureEvent();
+}
+
+/// Load feature data
+final class FeatureLoadRequested extends FeatureEvent {
+  const FeatureLoadRequested();
+}
+
+/// Add new item
+final class FeatureItemAdded extends FeatureEvent {
+  final FeatureItem item;
+  const FeatureItemAdded(this.item);
+}
+
+/// Delete item by ID
+final class FeatureItemDeleted extends FeatureEvent {
+  final String id;
+  const FeatureItemDeleted(this.id);
+}
+```
+
+### State Template
+
+```dart
+part of '{feature}_bloc.dart';
+
+sealed class FeatureState {
+  const FeatureState();
+}
+
+/// Initial state before any action
+final class FeatureInitial extends FeatureState {
+  const FeatureInitial();
+}
+
+/// Loading data
+final class FeatureLoading extends FeatureState {
+  const FeatureLoading();
+}
+
+/// Data loaded successfully
+final class FeatureLoaded extends FeatureState {
+  final List<FeatureItem> items;
+  const FeatureLoaded(this.items);
+}
+
+/// Error occurred
+final class FeatureError extends FeatureState {
+  final String message;
+  const FeatureError(this.message);
+}
+```
+
+### BLoC Template
+
+```dart
+import 'package:bloc/bloc.dart';
+import 'package:flutter_finance_assistant/domain/usecases/{feature}/{action}.dart';
+
+part '{feature}_event.dart';
+part '{feature}_state.dart';
+
+class FeatureBloc extends Bloc<FeatureEvent, FeatureState> {
+  final GetFeatureItems _getItems;
+  final AddFeatureItem _addItem;
+
+  FeatureBloc({
+    required GetFeatureItems getItems,
+    required AddFeatureItem addItem,
+  })  : _getItems = getItems,
+        _addItem = addItem,
+        super(const FeatureInitial()) {
+    on<FeatureLoadRequested>(_onLoadRequested);
+    on<FeatureItemAdded>(_onItemAdded);
+  }
+
+  Future<void> _onLoadRequested(
+    FeatureLoadRequested event,
+    Emitter<FeatureState> emit,
+  ) async {
+    emit(const FeatureLoading());
+    
+    final result = await _getItems();
+    
+    result.fold(
+      (failure) => emit(FeatureError(failure.message)),
+      (items) => emit(FeatureLoaded(items)),
+    );
+  }
+
+  Future<void> _onItemAdded(
+    FeatureItemAdded event,
+    Emitter<FeatureState> emit,
+  ) async {
+    final currentState = state;
+    if (currentState is! FeatureLoaded) return;
+
+    final result = await _addItem(event.item);
+    
+    result.fold(
+      (failure) => emit(FeatureError(failure.message)),
+      (_) {
+        final updatedItems = [...currentState.items, event.item];
+        emit(FeatureLoaded(updatedItems));
+      },
+    );
+  }
+}
+```
+
+---
+
+## Entity Creation
+
+### Location
+`lib/domain/entities/{feature}.dart`
+
+### Template
+
+```dart
+import 'package:equatable/equatable.dart';
+
+/// Represents a {feature} in the domain layer.
+/// 
+/// This is a pure Dart class with no external dependencies.
+class Feature extends Equatable {
+  final String id;
+  final String name;
+  final double amount;
+  final DateTime createdAt;
+
+  const Feature({
+    required this.id,
+    required this.name,
+    required this.amount,
+    required this.createdAt,
+  });
+
+  /// Creates a copy with modified fields
+  Feature copyWith({
+    String? id,
+    String? name,
+    double? amount,
+    DateTime? createdAt,
+  }) {
+    return Feature(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      amount: amount ?? this.amount,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  List<Object?> get props => [id, name, amount, createdAt];
+}
+```
+
+---
+
+## Model Creation
+
+### Location
+`lib/data/models/{feature}_model.dart`
+
+### Template
+
+```dart
+import 'package:json_annotation/json_annotation.dart';
+import 'package:flutter_finance_assistant/domain/entities/{feature}.dart';
+
+part '{feature}_model.g.dart';
+
+@JsonSerializable()
+class FeatureModel {
+  final String id;
+  final String name;
+  final double amount;
+  
+  @JsonKey(name: 'created_at')
+  final DateTime createdAt;
+
+  const FeatureModel({
+    required this.id,
+    required this.name,
+    required this.amount,
+    required this.createdAt,
+  });
+
+  /// Create from JSON
+  factory FeatureModel.fromJson(Map<String, dynamic> json) =>
+      _$FeatureModelFromJson(json);
+
+  /// Convert to JSON
+  Map<String, dynamic> toJson() => _$FeatureModelToJson(this);
+
+  /// Convert to domain entity
+  Feature toEntity() => Feature(
+        id: id,
+        name: name,
+        amount: amount,
+        createdAt: createdAt,
+      );
+
+  /// Create from domain entity
+  factory FeatureModel.fromEntity(Feature entity) => FeatureModel(
+        id: entity.id,
+        name: entity.name,
+        amount: entity.amount,
+        createdAt: entity.createdAt,
+      );
+  
+  /// Create from Firestore document
+  factory FeatureModel.fromFirestore(Map<String, dynamic> data, String id) {
+    return FeatureModel(
+      id: id,
+      name: data['name'] as String,
+      amount: (data['amount'] as num).toDouble(),
+      createdAt: (data['created_at'] as Timestamp).toDate(),
+    );
+  }
+
+  /// Convert to Firestore document
+  Map<String, dynamic> toFirestore() {
+    return {
+      'name': name,
+      'amount': amount,
+      'created_at': Timestamp.fromDate(createdAt),
+    };
+  }
+}
+```
+
+### After Creating Model
+Run build_runner to generate serialization code:
+```bash
+dart run build_runner build --delete-conflicting-outputs
+```
+
+---
+
+## Drift Table Creation
+
+### Location
+`lib/data/datasources/local/tables/tables.dart`
+
+### Template
+
+```dart
+/// Table for storing {feature}s
+class Features extends Table {
+  // Primary key
+  TextColumn get id => text()();
+  
+  // Foreign key (if user-owned)
+  TextColumn get userId => text().references(Users, #id)();
+  
+  // Feature-specific columns
+  TextColumn get name => text().withLength(min: 1, max: 100)();
+  RealColumn get amount => real()();
+  
+  // Timestamps (stored as Unix milliseconds)
+  IntColumn get createdAt => integer()();
+  IntColumn get updatedAt => integer()();
+  
+  // Sync status ('synced', 'pending', 'failed')
+  TextColumn get syncStatus => text().withDefault(const Constant('pending'))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+```
+
+### Column Types
+```dart
+TextColumn        // TEXT - for strings
+IntColumn         // INTEGER - for ints, timestamps
+RealColumn        // REAL - for doubles
+BoolColumn        // INTEGER (0/1) - for booleans
+DateTimeColumn    // INTEGER - auto-converts DateTime
+BlobColumn        // BLOB - for binary data
+```
+
+### Column Modifiers
+```dart
+text()()                                    // Required
+text().nullable()()                         // Optional
+text().withDefault(const Constant(''))()    // With default
+text().withLength(min: 1, max: 100)()       // Length constraint
+text().references(OtherTable, #column)()    // Foreign key
+integer().autoIncrement()()                 // Auto increment
+```
+
+---
+
+## DAO Creation
+
+### Location
+`lib/data/datasources/local/daos/{feature}_dao.dart`
+
+### Template
+
+```dart
+import 'package:drift/drift.dart';
+import '../app_database.dart';
+import '../tables/tables.dart';
+
+part '{feature}_dao.g.dart';
+
+@DriftAccessor(tables: [Features])
+class FeaturesDao extends DatabaseAccessor<AppDatabase> with _$FeaturesDaoMixin {
+  FeaturesDao(super.db);
+
+  // ==================== CRUD ====================
+
+  /// Get feature by ID
+  Future<Feature?> getFeatureById(String id) {
+    return (select(features)..where((t) => t.id.equals(id))).getSingleOrNull();
+  }
+
+  /// Get all features
+  Future<List<Feature>> getAllFeatures() {
+    return select(features).get();
+  }
+
+  /// Get features by user
+  Future<List<Feature>> getFeaturesByUser(String userId) {
+    return (select(features)..where((t) => t.userId.equals(userId))).get();
+  }
+
+  /// Insert new feature
+  Future<void> insertFeature(FeaturesCompanion feature) {
+    return into(features).insert(feature);
+  }
+
+  /// Update feature
+  Future<void> updateFeature(FeaturesCompanion feature) {
+    return (update(features)..where((t) => t.id.equals(feature.id.value)))
+        .write(feature);
+  }
+
+  /// Delete feature
+  Future<void> deleteFeature(String id) {
+    return (delete(features)..where((t) => t.id.equals(id))).go();
+  }
+
+  // ==================== Queries ====================
+
+  /// Get active features
+  Future<List<Feature>> getActiveFeatures(String userId) {
+    return (select(features)
+          ..where((t) => t.userId.equals(userId) & t.isActive.equals(true))
+          ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
+        .get();
+  }
+
+  // ==================== Reactive Streams ====================
+
+  /// Watch features by user
+  Stream<List<Feature>> watchFeaturesByUser(String userId) {
+    return (select(features)
+          ..where((t) => t.userId.equals(userId))
+          ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
+        .watch();
+  }
+
+  // ==================== Sync ====================
+
+  /// Update sync status
+  Future<void> updateSyncStatus(String id, String status) {
+    return (update(features)..where((t) => t.id.equals(id))).write(
+      FeaturesCompanion(
+        syncStatus: Value(status),
+        updatedAt: Value(DateTime.now().millisecondsSinceEpoch),
+      ),
+    );
+  }
+
+  /// Get pending sync items
+  Future<List<Feature>> getPendingSync() {
+    return (select(features)
+          ..where((t) => t.syncStatus.equals('pending')))
+        .get();
+  }
+}
+```
+
+### DAO Rules
+1. Always extend `DatabaseAccessor<AppDatabase>`
+2. Use `_$FeaturesDaoMixin` from generated code
+3. Tables accessed via lowercase plurals (e.g., `features`, `accounts`)
+4. Use `FeaturesCompanion` for inserts/updates (allows partial updates)
+5. Use `Value()` wrapper for optional Companion fields
+6. Return `Future<void>` for write operations
+7. Return `Stream<T>` for reactive queries
+
+### After Creating DAO
+1. Add DAO to `app_database.dart`:
+```dart
+@DriftDatabase(
+  tables: [..., Features],
+  daos: [..., FeaturesDao],
+)
+class AppDatabase extends _$AppDatabase {
+  // Add getter
+  FeaturesDao get featuresDao => FeaturesDao(this);
+}
+```
+
+2. Add export to `daos/daos.dart`:
+```dart
+export 'features_dao.dart';
+```
+
+3. Run build_runner:
+```bash
+dart run build_runner build --delete-conflicting-outputs
+```
+
+---
+
+## Remote Datasource Creation
+
+### Location
+`lib/data/datasources/remote/{feature}_remote_datasource.dart`
+
+### Abstract Interface Template
+
+```dart
+import 'package:flutter_finance_assistant/data/models/{feature}_model.dart';
+
+/// Remote datasource for {Feature} operations with Firebase.
+abstract class FeatureRemoteDataSource {
+  /// Get all features for a user.
+  Future<List<FeatureModel>> getFeatures(String userId);
+
+  /// Get feature by ID.
+  Future<FeatureModel?> getFeatureById(String userId, String featureId);
+
+  /// Create a new feature.
+  Future<FeatureModel> createFeature(String userId, FeatureModel feature);
+
+  /// Update an existing feature.
+  Future<FeatureModel> updateFeature(String userId, FeatureModel feature);
+
+  /// Delete a feature.
+  Future<void> deleteFeature(String userId, String featureId);
+
+  /// Stream all features for a user.
+  Stream<List<FeatureModel>> watchFeatures(String userId);
+}
+```
+
+### Implementation Template
+
+```dart
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_finance_assistant/core/errors/exceptions.dart';
+import 'package:flutter_finance_assistant/data/datasources/remote/firebase_service.dart';
+import 'package:flutter_finance_assistant/data/models/{feature}_model.dart';
+
+/// Implementation of [FeatureRemoteDataSource] using Firebase Firestore.
+class FeatureRemoteDataSourceImpl implements FeatureRemoteDataSource {
+  final FirebaseService _firebaseService;
+
+  FeatureRemoteDataSourceImpl({required FirebaseService firebaseService})
+      : _firebaseService = firebaseService;
+
+  @override
+  Future<List<FeatureModel>> getFeatures(String userId) async {
+    return _firebaseService.handleFirestoreOperation(
+      () async {
+        final snapshot = await _firebaseService
+            .featuresCollection(userId)
+            .orderBy('created_at', descending: true)
+            .get();
+
+        return snapshot.docs
+            .map((doc) => FeatureModel.fromFirestore(doc.data(), doc.id))
+            .toList();
+      },
+      operationName: 'get features',
+    );
+  }
+
+  @override
+  Future<FeatureModel?> getFeatureById(String userId, String featureId) async {
+    return _firebaseService.handleFirestoreOperation(
+      () async {
+        final doc = await _firebaseService
+            .featuresCollection(userId)
+            .doc(featureId)
+            .get();
+
+        if (!doc.exists || doc.data() == null) {
+          return null;
+        }
+
+        return FeatureModel.fromFirestore(doc.data()!, doc.id);
+      },
+      operationName: 'get feature',
+    );
+  }
+
+  @override
+  Future<FeatureModel> createFeature(String userId, FeatureModel feature) async {
+    return _firebaseService.handleFirestoreOperation(
+      () async {
+        final docRef = _firebaseService.featuresCollection(userId).doc(feature.id);
+
+        await docRef.set({
+          ...feature.toFirestore(),
+          'created_at': FieldValue.serverTimestamp(),
+          'updated_at': FieldValue.serverTimestamp(),
+        });
+
+        final doc = await docRef.get();
+        return FeatureModel.fromFirestore(doc.data()!, doc.id);
+      },
+      operationName: 'create feature',
+    );
+  }
+
+  @override
+  Future<FeatureModel> updateFeature(String userId, FeatureModel feature) async {
+    return _firebaseService.handleFirestoreOperation(
+      () async {
+        final docRef = _firebaseService.featuresCollection(userId).doc(feature.id);
+
+        await docRef.update({
+          ...feature.toFirestore(),
+          'updated_at': FieldValue.serverTimestamp(),
+        });
+
+        final doc = await docRef.get();
+        if (!doc.exists || doc.data() == null) {
+          throw NotFoundException('Feature not found after update');
+        }
+
+        return FeatureModel.fromFirestore(doc.data()!, doc.id);
+      },
+      operationName: 'update feature',
+    );
+  }
+
+  @override
+  Future<void> deleteFeature(String userId, String featureId) async {
+    return _firebaseService.handleFirestoreOperation(
+      () async {
+        await _firebaseService
+            .featuresCollection(userId)
+            .doc(featureId)
+            .delete();
+      },
+      operationName: 'delete feature',
+    );
+  }
+
+  @override
+  Stream<List<FeatureModel>> watchFeatures(String userId) {
+    return _firebaseService
+        .featuresCollection(userId)
+        .orderBy('created_at', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => FeatureModel.fromFirestore(doc.data(), doc.id))
+            .toList());
+  }
+}
+```
+
+### Remote Datasource Rules
+1. Always use `FirebaseService.handleFirestoreOperation()` for error handling
+2. Use `FieldValue.serverTimestamp()` for created_at/updated_at timestamps
+3. All user data should be stored in user subcollections (`users/{userId}/{collection}`)
+4. Return `Model` types, not `Entity` types
+5. Use `Model.fromFirestore()` and `Model.toFirestore()` for serialization
+6. Provide both `Future` methods and `Stream` methods where applicable
+7. Document all methods with `///` comments
+
+### After Creating Remote Datasource
+1. Add collection reference to `firebase_service.dart`:
+```dart
+CollectionReference<Map<String, dynamic>> featuresCollection(String userId) =>
+    _firestore
+        .collection(AppConstants.usersCollection)
+        .doc(userId)
+        .collection(AppConstants.featuresCollection);
+```
+
+2. Add export to `remote/remote.dart`:
+```dart
+export 'feature_remote_datasource.dart';
+```
+
+---
+
+## UseCase Creation
+
+### Location
+`lib/domain/usecases/{feature}/{action}.dart`
+
+### Template
+
+```dart
+import 'package:dartz/dartz.dart';
+import 'package:flutter_finance_assistant/core/errors/failures.dart';
+import 'package:flutter_finance_assistant/domain/entities/{feature}.dart';
+import 'package:flutter_finance_assistant/domain/repositories/{feature}_repository.dart';
+
+/// Use case for getting all features
+class GetFeatures {
+  final FeatureRepository _repository;
+
+  GetFeatures(this._repository);
+
+  Future<Either<Failure, List<Feature>>> call() async {
+    return await _repository.getAll();
+  }
+}
+
+/// Use case for getting a single feature by ID
+class GetFeatureById {
+  final FeatureRepository _repository;
+
+  GetFeatureById(this._repository);
+
+  Future<Either<Failure, Feature>> call(String id) async {
+    return await _repository.getById(id);
+  }
+}
+
+/// Use case for adding a new feature
+class AddFeature {
+  final FeatureRepository _repository;
+
+  AddFeature(this._repository);
+
+  Future<Either<Failure, void>> call(Feature feature) async {
+    return await _repository.add(feature);
+  }
+}
+```
+
+---
+
+## Repository Creation
+
+### Interface Location
+`lib/domain/repositories/{feature}_repository.dart`
+
+### Interface Template
+
+```dart
+import 'package:dartz/dartz.dart';
+import 'package:flutter_finance_assistant/core/errors/failures.dart';
+import 'package:flutter_finance_assistant/domain/entities/{feature}.dart';
+
+/// Repository interface for {feature} operations.
+/// 
+/// Implemented in the data layer.
+abstract class FeatureRepository {
+  /// Get all features
+  Future<Either<Failure, List<Feature>>> getAll();
+
+  /// Get feature by ID
+  Future<Either<Failure, Feature>> getById(String id);
+
+  /// Add new feature
+  Future<Either<Failure, void>> add(Feature feature);
+
+  /// Update existing feature
+  Future<Either<Failure, void>> update(Feature feature);
+
+  /// Delete feature by ID
+  Future<Either<Failure, void>> delete(String id);
+}
+```
+
+### Implementation Location
+`lib/data/repositories/{feature}_repository_impl.dart`
+
+### Implementation Template
+
+```dart
+import 'package:dartz/dartz.dart';
+import 'package:flutter_finance_assistant/core/errors/exceptions.dart';
+import 'package:flutter_finance_assistant/core/errors/failures.dart';
+import 'package:flutter_finance_assistant/data/datasources/local/{feature}_local_datasource.dart';
+import 'package:flutter_finance_assistant/data/datasources/remote/{feature}_remote_datasource.dart';
+import 'package:flutter_finance_assistant/domain/entities/{feature}.dart';
+import 'package:flutter_finance_assistant/domain/repositories/{feature}_repository.dart';
+
+class FeatureRepositoryImpl implements FeatureRepository {
+  final FeatureLocalDataSource _localDataSource;
+  final FeatureRemoteDataSource _remoteDataSource;
+
+  FeatureRepositoryImpl({
+    required FeatureLocalDataSource localDataSource,
+    required FeatureRemoteDataSource remoteDataSource,
+  })  : _localDataSource = localDataSource,
+        _remoteDataSource = remoteDataSource;
+
+  @override
+  Future<Either<Failure, List<Feature>>> getAll() async {
+    try {
+      // Offline-first: read from local
+      final models = await _localDataSource.getAll();
+      return Right(models.map((m) => m.toEntity()).toList());
+    } on CacheException catch (e) {
+      return Left(CacheFailure(e.message));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> add(Feature feature) async {
+    try {
+      final model = FeatureModel.fromEntity(feature);
+      await _localDataSource.insert(model);
+      // Queue for sync
+      await _localDataSource.queueForSync(model.id, 'create');
+      return const Right(null);
+    } on CacheException catch (e) {
+      return Left(CacheFailure(e.message));
+    }
+  }
+}
+```
+
+---
+
+## Color & Theme Guidelines
+
+### Accessing Theme
+
+```dart
+final theme = Theme.of(context);
+final isDark = theme.brightness == Brightness.dark;
+final colorScheme = theme.colorScheme;
+final textTheme = theme.textTheme;
+```
+
+### Color Usage
+
+```dart
+// ✅ Use AppTheme constants
+import 'package:flutter_finance_assistant/core/themes/app_theme.dart';
+
+// Status colors
+AppTheme.success  // Green - positive
+AppTheme.warning  // Yellow - caution
+AppTheme.error    // Red - negative
+AppTheme.info     // Blue - informational
+
+// Transaction colors
+AppTheme.income   // Green
+AppTheme.expense  // Red
+AppTheme.transfer // Blue
+
+// Chart colors
+AppTheme.getChartColor(index)
+```
+
+### Dark Mode Conditional
+
+```dart
+Container(
+  color: isDark ? Colors.grey[800] : Colors.grey[100],
+  child: Text(
+    'Content',
+    style: TextStyle(
+      color: isDark ? Colors.white : Colors.black87,
+    ),
+  ),
+)
+```
+
+---
+
+## Spacing & Sizing
+
+Use consistent spacing based on 4px grid:
+
+```dart
+const double spacing4 = 4;
+const double spacing8 = 8;
+const double spacing12 = 12;
+const double spacing16 = 16;
+const double spacing20 = 20;
+const double spacing24 = 24;
+const double spacing32 = 32;
+
+// Usage
+Padding(padding: EdgeInsets.all(spacing16))
+SizedBox(height: spacing8)
+```
+
+---
+
+## Common Patterns
+
+### Loading State
+
+```dart
+if (isLoading) {
+  return const Center(
+    child: CircularProgressIndicator(),
+  );
+}
+```
+
+### Error State
+
+```dart
+if (hasError) {
+  return Center(
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.error_outline, size: 48, color: AppTheme.error),
+        const SizedBox(height: 16),
+        Text(errorMessage),
+        const SizedBox(height: 16),
+        ElevatedButton(
+          onPressed: onRetry,
+          child: const Text('Retry'),
+        ),
+      ],
+    ),
+  );
+}
+```
+
+### Empty State
+
+```dart
+if (items.isEmpty) {
+  return Center(
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.inbox_outlined, size: 48, color: Colors.grey),
+        const SizedBox(height: 16),
+        Text('No items yet'),
+      ],
+    ),
+  );
+}
+```
+---
+
+## Use Case Creation
+
+### Location
+`lib/domain/usecases/{feature}/{action}.dart`
+
+### Base UseCase Class
+
+```dart
+// In lib/domain/usecases/usecase.dart
+import 'package:dartz/dartz.dart';
+import 'package:flutter_finance_assistant/core/errors/failures.dart';
+
+/// Base class for use cases with parameters
+abstract class UseCase<Type, Params> {
+  Future<Either<Failure, Type>> call(Params params);
+}
+
+/// Base class for use cases without parameters
+abstract class UseCaseNoParams<Type> {
+  Future<Either<Failure, Type>> call();
+}
+
+/// Base class for stream use cases (watch/listen)
+abstract class StreamUseCase<Type, Params> {
+  Stream<Either<Failure, Type>> call(Params params);
+}
+
+/// Base class for stream use cases without parameters
+abstract class StreamUseCaseNoParams<Type> {
+  Stream<Either<Failure, Type>> call();
+}
+```
+
+### Simple Use Case Template
+
+```dart
+import 'package:dartz/dartz.dart';
+import 'package:flutter_finance_assistant/core/errors/failures.dart';
+import 'package:flutter_finance_assistant/domain/repositories/{feature}_repository.dart';
+
+class GetFeatureItemsUseCase {
+  final FeatureRepository _repository;
+
+  GetFeatureItemsUseCase(this._repository);
+
+  Future<Either<Failure, List<FeatureItem>>> call() {
+    return _repository.getAll();
+  }
+}
+```
+
+### Use Case with Parameters
+
+```dart
+import 'package:dartz/dartz.dart';
+import 'package:equatable/equatable.dart';
+import 'package:flutter_finance_assistant/core/errors/failures.dart';
+import 'package:flutter_finance_assistant/domain/repositories/{feature}_repository.dart';
+
+class CreateFeatureItemUseCase {
+  final FeatureRepository _repository;
+
+  CreateFeatureItemUseCase(this._repository);
+
+  Future<Either<Failure, FeatureItem>> call(CreateFeatureParams params) {
+    return _repository.create(
+      name: params.name,
+      amount: params.amount,
+    );
+  }
+}
+
+/// Parameters for CreateFeatureItem use case
+class CreateFeatureParams extends Equatable {
+  final String name;
+  final double amount;
+
+  const CreateFeatureParams({
+    required this.name,
+    required this.amount,
+  });
+
+  @override
+  List<Object?> get props => [name, amount];
+}
+```
+
+### Stream Use Case (Watch)
+
+```dart
+import 'package:dartz/dartz.dart';
+import 'package:flutter_finance_assistant/core/errors/failures.dart';
+import 'package:flutter_finance_assistant/domain/repositories/{feature}_repository.dart';
+
+class WatchFeatureItemsUseCase {
+  final FeatureRepository _repository;
+
+  WatchFeatureItemsUseCase(this._repository);
+
+  Stream<Either<Failure, List<FeatureItem>>> call() {
+    return _repository.watchAll();
+  }
+}
+```
+
+### Use Case Barrel Export
+
+```dart
+// In lib/domain/usecases/{feature}/{feature}_usecases.dart
+export 'create_{feature}.dart';
+export 'get_{feature}s.dart';
+export 'update_{feature}.dart';
+export 'delete_{feature}.dart';
+export 'watch_{feature}s.dart';
+```
+
+---
+
+## Auth BLoC Example (Reference Implementation)
+
+This is a complete reference for creating authentication BLoCs.
+
+### Auth Events
+
+```dart
+// lib/presentation/bloc/auth/auth_event.dart
+import 'package:equatable/equatable.dart';
+
+sealed class AuthEvent extends Equatable {
+  const AuthEvent();
+
+  @override
+  List<Object?> get props => [];
+}
+
+/// Check current auth state on app start
+final class AuthCheckRequested extends AuthEvent {
+  const AuthCheckRequested();
+}
+
+/// Sign in with email and password
+final class AuthSignInWithEmailRequested extends AuthEvent {
+  final String email;
+  final String password;
+
+  const AuthSignInWithEmailRequested({
+    required this.email,
+    required this.password,
+  });
+
+  @override
+  List<Object?> get props => [email, password];
+}
+
+/// Register new user
+final class AuthRegisterRequested extends AuthEvent {
+  final String email;
+  final String password;
+  final String? displayName;
+
+  const AuthRegisterRequested({
+    required this.email,
+    required this.password,
+    this.displayName,
+  });
+
+  @override
+  List<Object?> get props => [email, password, displayName];
+}
+
+/// Sign in with Google
+final class AuthSignInWithGoogleRequested extends AuthEvent {
+  const AuthSignInWithGoogleRequested();
+}
+
+/// Sign in with Apple
+final class AuthSignInWithAppleRequested extends AuthEvent {
+  const AuthSignInWithAppleRequested();
+}
+
+/// Sign out
+final class AuthSignOutRequested extends AuthEvent {
+  const AuthSignOutRequested();
+}
+
+/// Send password reset email
+final class AuthPasswordResetRequested extends AuthEvent {
+  final String email;
+
+  const AuthPasswordResetRequested({required this.email});
+
+  @override
+  List<Object?> get props => [email];
+}
+```
+
+### Auth States
+
+```dart
+// lib/presentation/bloc/auth/auth_state.dart
+import 'package:equatable/equatable.dart';
+
+/// Error types for user-friendly messages
+enum AuthErrorType {
+  invalidCredentials('Invalid email or password'),
+  emailAlreadyInUse('An account already exists with this email'),
+  weakPassword('Password is too weak'),
+  networkError('Network error. Please check your connection'),
+  unknown('An unexpected error occurred');
+
+  final String message;
+  const AuthErrorType(this.message);
+}
+
+sealed class AuthState extends Equatable {
+  const AuthState();
+
+  @override
+  List<Object?> get props => [];
+}
+
+/// Initial state
+final class AuthInitial extends AuthState {
+  const AuthInitial();
+}
+
+/// Checking authentication status
+final class AuthLoading extends AuthState {
+  const AuthLoading();
+}
+
+/// User is authenticated
+final class AuthAuthenticated extends AuthState {
+  final String userId;
+
+  const AuthAuthenticated({required this.userId});
+
+  @override
+  List<Object?> get props => [userId];
+}
+
+/// User is not authenticated
+final class AuthUnauthenticated extends AuthState {
+  const AuthUnauthenticated();
+}
+
+/// Authentication error
+final class AuthError extends AuthState {
+  final AuthErrorType errorType;
+  final String? customMessage;
+
+  const AuthError({
+    required this.errorType,
+    this.customMessage,
+  });
+
+  String get message => customMessage ?? errorType.message;
+
+  @override
+  List<Object?> get props => [errorType, customMessage];
+}
+
+/// Password reset email sent
+final class AuthPasswordResetSent extends AuthState {
+  const AuthPasswordResetSent();
+}
+```
+
+### Auth BLoC
+
+```dart
+// lib/presentation/bloc/auth/auth_bloc.dart
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_finance_assistant/domain/usecases/auth/auth_usecases.dart';
+
+import 'auth_event.dart';
+import 'auth_state.dart';
+
+class AuthBloc extends Bloc<AuthEvent, AuthState> {
+  final SignInWithEmailUseCase signInWithEmail;
+  final RegisterWithEmailUseCase registerWithEmail;
+  final SignInWithGoogleUseCase signInWithGoogle;
+  final SignInWithAppleUseCase signInWithApple;
+  final SignOutUseCase signOut;
+  final GetCurrentUserIdUseCase getCurrentUserId;
+  final SendPasswordResetEmailUseCase sendPasswordResetEmail;
+
+  AuthBloc({
+    required this.signInWithEmail,
+    required this.registerWithEmail,
+    required this.signInWithGoogle,
+    required this.signInWithApple,
+    required this.signOut,
+    required this.getCurrentUserId,
+    required this.sendPasswordResetEmail,
+  }) : super(const AuthInitial()) {
+    on<AuthCheckRequested>(_onCheckRequested);
+    on<AuthSignInWithEmailRequested>(_onSignInWithEmail);
+    on<AuthRegisterRequested>(_onRegister);
+    on<AuthSignInWithGoogleRequested>(_onSignInWithGoogle);
+    on<AuthSignInWithAppleRequested>(_onSignInWithApple);
+    on<AuthSignOutRequested>(_onSignOut);
+    on<AuthPasswordResetRequested>(_onPasswordReset);
+  }
+
+  Future<void> _onCheckRequested(
+    AuthCheckRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(const AuthLoading());
+
+    final result = await getCurrentUserId();
+
+    result.fold(
+      (failure) => emit(const AuthUnauthenticated()),
+      (userId) {
+        if (userId != null) {
+          emit(AuthAuthenticated(userId: userId));
+        } else {
+          emit(const AuthUnauthenticated());
+        }
+      },
+    );
+  }
+
+  Future<void> _onSignInWithEmail(
+    AuthSignInWithEmailRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(const AuthLoading());
+
+    final result = await signInWithEmail(
+      SignInWithEmailParams(
+        email: event.email,
+        password: event.password,
+      ),
+    );
+
+    result.fold(
+      (failure) => emit(AuthError(
+        errorType: _mapFailureToErrorType(failure),
+      )),
+      (userId) => emit(AuthAuthenticated(userId: userId)),
+    );
+  }
+
+  // ... other handlers follow same pattern
+
+  AuthErrorType _mapFailureToErrorType(Failure failure) {
+    if (failure is InvalidCredentialsFailure) {
+      return AuthErrorType.invalidCredentials;
+    } else if (failure is EmailAlreadyInUseFailure) {
+      return AuthErrorType.emailAlreadyInUse;
+    } else if (failure is WeakPasswordFailure) {
+      return AuthErrorType.weakPassword;
+    } else if (failure is NetworkFailure) {
+      return AuthErrorType.networkError;
+    }
+    return AuthErrorType.unknown;
+  }
+}
+```
+
+---
+
+## Budget BLoC (Complete Implementation)
+
+### Budget Events
+
+```dart
+// lib/presentation/bloc/budget/budget_event.dart
+import 'package:equatable/equatable.dart';
+import 'package:flutter_finance_assistant/domain/entities/budget.dart';
+
+sealed class BudgetEvent extends Equatable {
+  const BudgetEvent();
+  @override
+  List<Object?> get props => [];
+}
+
+// Load Events
+final class BudgetLoadRequested extends BudgetEvent {
+  final String userId;
+  const BudgetLoadRequested({required this.userId});
+  @override
+  List<Object?> get props => [userId];
+}
+
+final class BudgetWatchRequested extends BudgetEvent {
+  final String userId;
+  const BudgetWatchRequested({required this.userId});
+  @override
+  List<Object?> get props => [userId];
+}
+
+// CRUD Events
+final class BudgetCreateRequested extends BudgetEvent {
+  final String categoryId;
+  final double amount;
+  final BudgetPeriod period;
+  final bool rollover;
+  final bool alertsEnabled;
+  final double alertThreshold;
+
+  const BudgetCreateRequested({
+    required this.categoryId,
+    required this.amount,
+    required this.period,
+    this.rollover = false,
+    this.alertsEnabled = true,
+    this.alertThreshold = 0.80,
+  });
+}
+
+final class BudgetUpdateRequested extends BudgetEvent {
+  final Budget budget;
+  const BudgetUpdateRequested({required this.budget});
+}
+
+final class BudgetDeleteRequested extends BudgetEvent {
+  final String budgetId;
+  const BudgetDeleteRequested({required this.budgetId});
+}
+
+// Internal Events (for stream updates)
+final class BudgetDataChanged extends BudgetEvent {
+  final List<Budget> budgets;
+  const BudgetDataChanged({required this.budgets});
+}
+
+final class BudgetErrorCleared extends BudgetEvent {
+  const BudgetErrorCleared();
+}
+```
+
+### Budget States
+
+```dart
+// lib/presentation/bloc/budget/budget_state.dart
+import 'package:equatable/equatable.dart';
+import 'package:flutter_finance_assistant/domain/entities/budget.dart';
+import 'package:flutter_finance_assistant/domain/repositories/budget_repository.dart';
+
+enum BudgetOperationType { create, update, delete, addSpending, resetPeriod }
+
+enum BudgetErrorType {
+  notFound('Budget not found'),
+  alreadyExists('Budget already exists for this category'),
+  invalidData('Invalid budget data'),
+  networkError('Network error'),
+  databaseError('Database error'),
+  unknown('An unexpected error occurred');
+
+  final String message;
+  const BudgetErrorType(this.message);
+}
+
+sealed class BudgetState extends Equatable {
+  const BudgetState();
+  @override
+  List<Object?> get props => [];
+}
+
+final class BudgetInitial extends BudgetState {
+  const BudgetInitial();
+}
+
+final class BudgetLoading extends BudgetState {
+  final String? message;
+  const BudgetLoading({this.message});
+}
+
+final class BudgetLoaded extends BudgetState {
+  final List<Budget> budgets;
+  final BudgetSummary? summary;
+
+  const BudgetLoaded({required this.budgets, this.summary});
+
+  // Computed properties
+  List<Budget> get exceededBudgets => budgets.where((b) => b.isExceeded).toList();
+  List<Budget> get warningBudgets => budgets.where((b) => b.isWarning && !b.isExceeded).toList();
+  List<Budget> get healthyBudgets => budgets.where((b) => !b.isWarning && !b.isExceeded).toList();
+  bool get hasAlerts => exceededBudgets.isNotEmpty || warningBudgets.isNotEmpty;
+}
+
+final class BudgetOperationSuccess extends BudgetState {
+  final BudgetOperationType operationType;
+  final String message;
+  final Budget? budget;
+
+  const BudgetOperationSuccess({
+    required this.operationType,
+    required this.message,
+    this.budget,
+  });
+}
+
+final class BudgetError extends BudgetState {
+  final BudgetErrorType errorType;
+  final String message;
+  final String? code;
+
+  const BudgetError({
+    required this.errorType,
+    required this.message,
+    this.code,
+  });
+}
+```
+
+### Budget BLoC Usage Example
+
+```dart
+// In screen - provide BLoC and start watching
+BlocProvider(
+  create: (context) => sl<BudgetBloc>()
+    ..add(BudgetWatchRequested(userId: userId)),
+  child: const _BudgetListView(),
+)
+
+// Passing BLoC to modal sheets (IMPORTANT!)
+void _showCreateBudgetSheet(BuildContext context) {
+  final budgetBloc = context.read<BudgetBloc>();
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (sheetContext) => BlocProvider.value(
+      value: budgetBloc,
+      child: const CreateBudgetSheet(),
+    ),
+  );
+}
+
+// Using BlocConsumer for state handling
+BlocConsumer<BudgetBloc, BudgetState>(
+  listener: (context, state) {
+    if (state is BudgetOperationSuccess) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(state.message)),
+      );
+    }
+  },
+  builder: (context, state) {
+    return switch (state) {
+      BudgetLoading() => const CircularProgressIndicator(),
+      BudgetLoaded(:final budgets, :final exceededBudgets) => Column(
+        children: [
+          if (exceededBudgets.isNotEmpty) AlertSection(budgets: exceededBudgets),
+          BudgetList(budgets: budgets),
+        ],
+      ),
+      BudgetError(:final message) => ErrorWidget(message: message),
+      _ => const SizedBox.shrink(),
+    };
+  },
+)
+```
+
+---
+
+## Use Case Composition Pattern
+
+### Overview
+When data from multiple domains needs to be combined (e.g., Budgets with Categories), we use **Use Case Composition** instead of joining at the repository level. This keeps repositories focused on single-domain responsibility.
+
+### When to Use
+| Pattern | Use When |
+|---------|----------|
+| Repository Join | Simple 1-to-1 relations within same bounded context |
+| **Use Case Composition** | Multiple aggregates, complex relations, cross-domain data |
+
+### Implementation
+
+**File**: `lib/domain/usecases/budget/get_budgets_with_relations.dart`
+
+```dart
+import 'package:dartz/dartz.dart';
+import 'package:equatable/equatable.dart';
+import 'package:flutter_finance_assistant/core/errors/failures.dart';
+import 'package:flutter_finance_assistant/domain/entities/budget.dart';
+import 'package:flutter_finance_assistant/domain/entities/category.dart';
+import 'package:flutter_finance_assistant/domain/repositories/budget_repository.dart';
+import 'package:flutter_finance_assistant/domain/repositories/category_repository.dart';
+import 'package:flutter_finance_assistant/domain/usecases/usecase.dart';
+
+/// Use case demonstrating Use Case Composition pattern.
+/// Composes data from multiple repositories at the domain layer.
+class GetBudgetsWithRelationsUseCase
+    extends UseCase<List<Budget>, GetBudgetsWithRelationsParams> {
+  final BudgetRepository budgetRepository;
+  final CategoryRepository categoryRepository;
+
+  GetBudgetsWithRelationsUseCase({
+    required this.budgetRepository,
+    required this.categoryRepository,
+  });
+
+  @override
+  Future<Either<Failure, List<Budget>>> call(
+    GetBudgetsWithRelationsParams params,
+  ) async {
+    // Step 1: Fetch budgets
+    final budgetsResult = await budgetRepository.getBudgets(params.userId);
+
+    return budgetsResult.fold(
+      (failure) => Left(failure),
+      (budgets) async {
+        if (!params.includeCategory) return Right(budgets);
+
+        // Step 2: Fetch categories
+        final categoriesResult = await categoryRepository.getCategories(
+          params.userId,
+        );
+
+        return categoriesResult.fold(
+          (failure) => Right(budgets), // Graceful degradation
+          (categories) {
+            // Step 3: Compose with O(1) lookup
+            final categoryMap = {for (final c in categories) c.id: c};
+            final composedBudgets = budgets.map((budget) {
+              final category = categoryMap[budget.categoryId];
+              return category != null
+                  ? budget.copyWith(category: category)
+                  : budget;
+            }).toList();
+            return Right(composedBudgets);
+          },
+        );
+      },
+    );
+  }
+}
+
+class GetBudgetsWithRelationsParams extends Equatable {
+  final String userId;
+  final bool includeCategory;
+
+  const GetBudgetsWithRelationsParams({
+    required this.userId,
+    this.includeCategory = true,
+  });
+
+  @override
+  List<Object?> get props => [userId, includeCategory];
+}
+```
+
+### DI Registration
+
+```dart
+// Use Case Composition - Budgets with Relations
+sl.registerLazySingleton(
+  () => GetBudgetsWithRelationsUseCase(
+    budgetRepository: sl(),
+    categoryRepository: sl(),
+  ),
+);
+sl.registerLazySingleton(
+  () => WatchBudgetsWithRelationsUseCase(
+    budgetRepository: sl(),
+    categoryRepository: sl(),
+  ),
+);
+```
+
+### BLoC Usage
+
+```dart
+class BudgetBloc extends Bloc<BudgetEvent, BudgetState> {
+  final GetBudgetsWithRelationsUseCase getBudgetsWithRelations;
+  // ... other use cases
+
+  Future<void> _onLoadRequested(
+    BudgetLoadRequested event,
+    Emitter<BudgetState> emit,
+  ) async {
+    final result = await getBudgetsWithRelations(
+      GetBudgetsWithRelationsParams(
+        userId: event.userId,
+        includeCategory: true, // Toggle to include/exclude category data
+      ),
+    );
+    // ... handle result
+  }
+}
+```
+
+### Benefits
+1. **Single Responsibility**: Repositories stay focused on their domain
+2. **Flexibility**: Compose different relations for different use cases
+3. **Testability**: Each repository can be mocked independently
+4. **Graceful Degradation**: Partial failures don't break the entire flow
+
+### Future Extensions
+When adding more relations (transactions, accounts):
+
+```dart
+class GetBudgetsWithFullRelationsUseCase {
+  final BudgetRepository budgetRepository;
+  final CategoryRepository categoryRepository;
+  final TransactionRepository transactionRepository;
+  final AccountRepository accountRepository;
+
+  // Compose all relations as needed
+}
+```
+
+---
+
+## Dependency Injection Setup
+
+### Location
+`lib/core/di/injection_container.dart`
+
+### Current Implementation (Complete)
+
+```dart
+import 'package:get_it/get_it.dart';
+import 'package:flutter_finance_assistant/data/datasources/local/database/app_database.dart';
+import 'package:flutter_finance_assistant/data/datasources/remote/firebase_service.dart';
+import 'package:flutter_finance_assistant/data/datasources/remote/budget_remote_data_source.dart';
+// ... other imports
+
+final sl = GetIt.instance;
+
+Future<void> initDependencies() async {
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CORE - External Services & Database
+  // ═══════════════════════════════════════════════════════════════════════════
+  sl.registerLazySingleton<AppDatabase>(() => AppDatabase());
+  sl.registerLazySingleton<FirebaseService>(() => FirebaseService());
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Remote Data Sources
+  // ═══════════════════════════════════════════════════════════════════════════
+  sl.registerLazySingleton<BudgetRemoteDataSource>(
+    () => BudgetRemoteDataSource(sl<FirebaseService>()),
+  );
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Repositories
+  // ═══════════════════════════════════════════════════════════════════════════
+  sl.registerLazySingleton<BudgetRepository>(
+    () => BudgetRepositoryImpl(
+      database: sl<AppDatabase>(),
+      remoteDataSource: sl<BudgetRemoteDataSource>(),
+    ),
+  );
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Use Cases - Budget
+  // ═══════════════════════════════════════════════════════════════════════════
+  sl.registerLazySingleton(() => GetBudgetsUseCase(sl<BudgetRepository>()));
+  sl.registerLazySingleton(() => GetBudgetByIdUseCase(sl<BudgetRepository>()));
+  sl.registerLazySingleton(() => GetBudgetByCategoryUseCase(sl<BudgetRepository>()));
+  sl.registerLazySingleton(() => CreateBudgetUseCase(sl<BudgetRepository>()));
+  sl.registerLazySingleton(() => UpdateBudgetUseCase(sl<BudgetRepository>()));
+  sl.registerLazySingleton(() => DeleteBudgetUseCase(sl<BudgetRepository>()));
+  sl.registerLazySingleton(() => WatchBudgetsUseCase(sl<BudgetRepository>()));
+  sl.registerLazySingleton(() => GetBudgetSummaryUseCase(sl<BudgetRepository>()));
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // BLoCs (Factory - new instance each time)
+  // ═══════════════════════════════════════════════════════════════════════════
+  sl.registerFactory(
+    () => BudgetBloc(
+      getBudgets: sl(),
+      getBudgetById: sl(),
+      getBudgetByCategory: sl(),
+      createBudget: sl(),
+      updateBudget: sl(),
+      deleteBudget: sl(),
+      watchBudgets: sl(),
+      getBudgetSummary: sl(),
+    ),
+  );
+}
+```
+
+### Registration Order (IMPORTANT!)
+Dependencies must be registered BEFORE dependents:
+1. **Core Services**: `AppDatabase`, `FirebaseService`
+2. **Remote Data Sources**: `BudgetRemoteDataSource` (depends on FirebaseService)
+3. **Repositories**: `BudgetRepositoryImpl` (depends on AppDatabase, RemoteDataSource)
+4. **Use Cases**: Each use case (depends on Repository)
+5. **BLoCs**: Each BLoC (depends on Use Cases)
+
+### Registration Types
+| Type | Use Case | Example |
+|------|----------|---------|
+| `registerSingleton` | Eager singleton, created immediately | Database, SharedPreferences |
+| `registerLazySingleton` | Lazy singleton, created on first use | Repositories, Use Cases |
+| `registerFactory` | New instance each call | BLoCs (each screen gets fresh BLoC) |
+| `registerFactoryParam` | Factory with parameters | BLoCs that need runtime params |
+
+---
+
+## Navigation Components
+
+### Splash Screen Template
+**Location**: `lib/presentation/screens/splash/splash_screen.dart`
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_finance_assistant/presentation/bloc/auth/auth_bloc.dart';
+import 'package:flutter_finance_assistant/presentation/bloc/auth/auth_event.dart';
+import 'package:flutter_finance_assistant/presentation/bloc/auth/auth_state.dart';
+
+class SplashScreen extends StatefulWidget {
+  const SplashScreen({super.key});
+
+  @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _setupAnimations();
+    _checkAuthState();
+  }
+
+  void _setupAnimations() {
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    );
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: const Interval(0.0, 0.5, curve: Curves.easeOut),
+      ),
+    );
+
+    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: const Interval(0.0, 0.5, curve: Curves.easeOutBack),
+      ),
+    );
+
+    _animationController.forward();
+  }
+
+  void _checkAuthState() {
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        context.read<AuthBloc>().add(const AuthCheckRequested());
+      }
+    });
+  }
+
+  void _navigateToNextScreen(bool isAuthenticated) {
+    Future.delayed(const Duration(milliseconds: 1000), () {
+      if (mounted) {
+        Navigator.pushReplacementNamed(
+          context,
+          isAuthenticated ? '/main' : '/login',
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocListener<AuthBloc, AuthState>(
+      listener: (context, state) {
+        if (state is AuthAuthenticated) {
+          _navigateToNextScreen(true);
+        } else if (state is AuthUnauthenticated || state is AuthError) {
+          _navigateToNextScreen(false);
+        }
+      },
+      child: Scaffold(
+        body: Container(
+          // Gradient background + animated logo
+        ),
+      ),
+    );
+  }
+}
+```
+
+### Main Screen with Bottom Navigation Template
+**Location**: `lib/presentation/screens/main/main_screen.dart`
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_finance_assistant/presentation/bloc/auth/auth_bloc.dart';
+import 'package:flutter_finance_assistant/presentation/bloc/auth/auth_state.dart';
+import 'package:flutter_finance_assistant/presentation/screens/main/widgets/main_bottom_nav.dart';
+
+class MainScreen extends StatefulWidget {
+  const MainScreen({super.key});
+
+  @override
+  State<MainScreen> createState() => _MainScreenState();
+}
+
+class _MainScreenState extends State<MainScreen> {
+  int _currentIndex = 0;
+
+  final List<Widget> _screens = [
+    const DashboardScreen(),
+    const TransactionsScreen(),
+    const BudgetsScreen(),
+    const ChatScreen(),
+  ];
+
+  void _onNavTap(int index) {
+    setState(() => _currentIndex = index);
+  }
+
+  void _showQuickAddMenu() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => _QuickAddBottomSheet(),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocListener<AuthBloc, AuthState>(
+      listener: (context, state) {
+        if (state is AuthUnauthenticated) {
+          Navigator.pushReplacementNamed(context, '/login');
+        }
+      },
+      child: Scaffold(
+        body: IndexedStack(
+          index: _currentIndex,
+          children: _screens,
+        ),
+        floatingActionButton: FloatingActionButton(
+          onPressed: _showQuickAddMenu,
+          child: const Icon(Icons.add),
+        ),
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+        bottomNavigationBar: MainBottomNav(
+          currentIndex: _currentIndex,
+          onTap: _onNavTap,
+        ),
+      ),
+    );
+  }
+}
+```
+
+### Bottom Navigation Bar Template
+**Location**: `lib/presentation/screens/main/widgets/main_bottom_nav.dart`
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter_finance_assistant/core/themes/app_theme.dart';
+
+class MainBottomNav extends StatelessWidget {
+  final int currentIndex;
+  final ValueChanged<int> onTap;
+
+  const MainBottomNav({
+    super.key,
+    required this.currentIndex,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return BottomAppBar(
+      shape: const CircularNotchedRectangle(),
+      notchMargin: 8,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _NavItem(icon: Icons.home, label: 'Home', index: 0, ...),
+          _NavItem(icon: Icons.receipt_long, label: 'Transactions', index: 1, ...),
+          const SizedBox(width: 48), // Space for FAB
+          _NavItem(icon: Icons.wallet, label: 'Budgets', index: 2, ...),
+          _NavItem(icon: Icons.chat, label: 'Chat', index: 3, ...),
+        ],
+      ),
+    );
+  }
+}
+```
+
+### Navigation Rules
+1. **Splash Screen**: Always check auth state on init, use animations for branding
+2. **Main Screen**: Use `IndexedStack` to preserve tab state, handle sign-out via `BlocListener`
+3. **Bottom Nav**: Use `CircularNotchedRectangle` when using centered FAB
+4. **Routes**: Define all routes in `main.dart`, use named navigation
+5. **Auth Navigation**: Always use `pushReplacementNamed` for auth state changes

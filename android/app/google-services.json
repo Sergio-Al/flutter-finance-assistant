@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "864140811148",
+    "project_id": "fir-finance-assistant",
+    "storage_bucket": "fir-finance-assistant.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:864140811148:android:32d090ea4fcfe888ef54a9",
+        "android_client_info": {
+          "package_name": "com.example.flutter_finance_assistant"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "864140811148-7s70sf7ctrebj6a1irn6j58ssah1emep.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.flutter_finance_assistant",
+            "certificate_hash": "d0fc6e63101fd8a152b7d8e1c5b1e0bfc683e89c"
+          }
+        },
+        {
+          "client_id": "864140811148-hq9uuohgmhvekca9iikhgnv1qjnbprn1.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDUX_4kvK1C5MH2U3LntsBt0Tv3gvknuzc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "864140811148-hq9uuohgmhvekca9iikhgnv1qjnbprn1.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "864140811148-vsgi8mfnavlvrnrmf5r7dcebk21a0i5d.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.flutterFinanceAssistant"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
