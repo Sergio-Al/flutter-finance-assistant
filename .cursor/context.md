@@ -469,17 +469,21 @@ App Start → SplashScreen
 | `BudgetRemoteDataSource` | `LazySingleton` (Firestore datasource) |
 | `CategoryRemoteDataSource` | `LazySingleton` (Firestore datasource) |
 | `UserRemoteDataSource` | `LazySingleton` (Firestore datasource) |
+| `TransactionRemoteDataSource` | `LazySingleton` (Firestore datasource) |
 | `AuthRepository` | `LazySingleton` (Firebase Auth) |
 | `UserRepository` | `LazySingleton` (offline-first with sync) |
 | `BudgetRepository` | `LazySingleton` (offline-first with sync) |
 | `CategoryRepository` | `LazySingleton` (offline-first with sync, depends on UserRepository) |
+| `TransactionRepository` | `LazySingleton` (offline-first with sync) |
 | Auth Use Cases (13) | `LazySingleton` |
 | User Use Cases (1) | `LazySingleton` (`EnsureUserExistsUseCase`) |
 | Budget Use Cases (10) | `LazySingleton` (includes composed use cases) |
 | Category Use Cases (9) | `LazySingleton` |
+| Transaction Use Cases (4) | `LazySingleton` (`CreateTransaction`, `GetByDateRange`, `GetSpendingSummary`, `WatchRecent`) |
 | `AuthBloc` | `Factory` (includes `EnsureUserExistsUseCase` for FK constraint handling) |
 | `BudgetBloc` | `Factory` (uses GetBudgetsWithRelationsUseCase) |
 | `CategoryBloc` | `Factory` (new instance per screen) |
+| `TransactionBloc` | `Factory` (uses 4 transaction use cases) |
 
 ### ✅ Budget Presentation Layer (Complete)
 
@@ -504,12 +508,33 @@ App Start → SplashScreen
 | **IconPickerField** | Inline form field for selecting icons |
 | **IconConstants** | Centralized icon mapping (`getIcon()`, `groupedIcons`) used across the app |
 
+### ✅ Transaction Presentation Layer (Complete)
+
+| Component | Description |
+|-----------|-------------|
+| **TransactionBloc** | Full BLoC with 4 use cases registered in DI |
+| **TransactionListScreen** | Main list with filter bar, search, bulk actions, AI suggestions |
+| **TransactionItemCard** | Individual transaction card with category icon, amount, merchant |
+| **TransactionSummaryCard** | Summary showing income/expenses/net for period |
+| **TransactionFilterBar** | Filter chips for type, date range, category |
+| **CreateTransactionSheet** | Bottom sheet form for new transactions |
+| **EditTransactionSheet** | Bottom sheet form for editing existing transactions |
+| **TransactionDateHeader** | Grouped date headers with day totals |
+| **TransactionChartCard** | Visual spending breakdown chart |
+| **TransactionReceiptPreview** | Receipt image preview with OCR data |
+| **TransactionQuickStatsRow** | Quick stats row for dashboard |
+| **TransactionSkeletonLoader** | Loading skeleton animation |
+| **TransactionEmptyState** | Empty state with illustration |
+| **TransactionAiSuggestionCard** | AI-powered categorization suggestions |
+| **TransactionRecurringBadge** | Badge for recurring transactions |
+| **TransactionExportSheet** | Export options (CSV, PDF) |
+| **TransactionBulkActionsBar** | Bulk selection actions (delete, categorize, export) |
+| **TransactionSplitSheet** | Split transaction between categories |
+
 ### 🚧 In Progress
-- [ ] Transaction screens UI (placeholder in MainScreen)
 - [ ] Chat screens UI (placeholder in MainScreen)
 
 ### 📋 Planned
-- [ ] Transaction BLoC state management
 - [ ] Account BLoC state management
 - [ ] Receipt BLoC state management
 - [ ] Chat BLoC state management
@@ -517,7 +542,6 @@ App Start → SplashScreen
 - [ ] Chat interface UI (replace placeholder)
 - [ ] Analytics charts
 - [ ] Settings screen
-- [ ] Transaction screens UI (replace placeholder)
 - [ ] Account screens UI
 - [ ] Profile/Account management screens
 - [ ] Extend Use Case Composition with Transaction and Account relations
@@ -581,13 +605,30 @@ App Start → SplashScreen
 | `lib/presentation/screens/auth/widgets/social_sign_in_button.dart` | Google/Apple sign-in buttons |
 | `lib/presentation/screens/auth/widgets/password_strength_indicator.dart` | Password strength meter |
 | `lib/presentation/screens/splash/splash_screen.dart` | Animated splash with auth state check, routes to /main or /login |
-| `lib/presentation/screens/main/main_screen.dart` | Bottom navigation container with 4 tabs and FAB |
+| `lib/presentation/screens/main/main_screen.dart` | Bottom navigation container with 4 tabs, FAB, and primary account loading |
 | `lib/presentation/screens/main/widgets/main_bottom_nav.dart` | Custom BottomAppBar with FAB notch |
 | `lib/presentation/screens/budget/budget_list_screen.dart` | Budget list with summary card, alerts, and all budgets |
 | `lib/presentation/screens/budget/budget_detail_screen.dart` | Budget detail with expandable app bar and stats |
 | `lib/presentation/screens/budget/widgets/budget_item_card.dart` | Individual budget card with category icon/color |
 | `lib/presentation/screens/budget/widgets/budget_summary_card.dart` | Summary card with circular progress indicator |
 | `lib/presentation/screens/budget/widgets/create_budget_sheet.dart` | Create/Edit budget with CategorySelector |
+| `lib/presentation/screens/transaction/transaction_list_screen.dart` | Transaction list with filter, search, bulk actions |
+| `lib/presentation/screens/transaction/widgets/transaction_item_card.dart` | Individual transaction card |
+| `lib/presentation/screens/transaction/widgets/transaction_summary_card.dart` | Summary with income/expense/net |
+| `lib/presentation/screens/transaction/widgets/transaction_filter_bar.dart` | Filter chips for type, date, category |
+| `lib/presentation/screens/transaction/widgets/create_transaction_sheet.dart` | Create transaction bottom sheet |
+| `lib/presentation/screens/transaction/widgets/edit_transaction_sheet.dart` | Edit transaction bottom sheet |
+| `lib/presentation/screens/transaction/widgets/transaction_date_header.dart` | Date section headers |
+| `lib/presentation/screens/transaction/widgets/transaction_chart_card.dart` | Spending breakdown chart |
+| `lib/presentation/screens/transaction/widgets/transaction_receipt_preview.dart` | Receipt OCR preview |
+| `lib/presentation/screens/transaction/widgets/transaction_quick_stats_row.dart` | Quick stats row |
+| `lib/presentation/screens/transaction/widgets/transaction_skeleton_loader.dart` | Loading skeleton |
+| `lib/presentation/screens/transaction/widgets/transaction_empty_state.dart` | Empty state UI |
+| `lib/presentation/screens/transaction/widgets/transaction_ai_suggestion_card.dart` | AI categorization suggestions |
+| `lib/presentation/screens/transaction/widgets/transaction_recurring_badge.dart` | Recurring transaction badge |
+| `lib/presentation/screens/transaction/widgets/transaction_export_sheet.dart` | Export options sheet |
+| `lib/presentation/screens/transaction/widgets/transaction_bulk_actions_bar.dart` | Bulk selection actions |
+| `lib/presentation/screens/transaction/widgets/transaction_split_sheet.dart` | Split transaction sheet |
 | `lib/presentation/bloc/auth/auth_bloc.dart` | Auth BLoC with all auth handlers |
 | `lib/presentation/bloc/auth/auth_event.dart` | 11 auth events |
 | `lib/presentation/bloc/auth/auth_state.dart` | 8 auth states + AuthErrorType enum |
@@ -597,6 +638,9 @@ App Start → SplashScreen
 | `lib/presentation/bloc/category/category_bloc.dart` | Category BLoC with watch, search, and CRUD handlers |
 | `lib/presentation/bloc/category/category_event.dart` | 18 category events |
 | `lib/presentation/bloc/category/category_state.dart` | 5 category states + CategoryErrorType enum |
+| `lib/presentation/bloc/transaction/transaction_bloc.dart` | Transaction BLoC with filtering, bulk actions |
+| `lib/presentation/bloc/transaction/transaction_event.dart` | Transaction events (Load, Filter, CRUD, Bulk) |
+| `lib/presentation/bloc/transaction/transaction_state.dart` | Transaction states + error handling |
 
 ### Dependency Injection
 | File | Purpose |
@@ -627,6 +671,37 @@ GEMINI_API_KEY=your_gemini_api_key
 OPENAI_API_KEY=your_openai_api_key
 FIREBASE_PROJECT_ID=your_project_id
 ```
+
+---
+
+## Changelog
+
+### 2025-12-28: Transaction Creation FK Fix
+
+**Issue**: Transaction creation was failing silently due to foreign key constraint violation.
+
+**Root Cause**:
+- `TransactionListScreen` was receiving `userId` as `accountId` parameter
+- The `transactions` table has FK constraint: `accountId → accounts.id`
+- No account existed with the user ID, causing silent insert failures
+
+**Files Modified**:
+1. `lib/data/repositories/user_repository_impl.dart`
+   - Updated `ensureUserExists()` to also create a default "Main Account" if user has no accounts
+   - Added `uuid` package import for account ID generation
+
+2. `lib/presentation/screens/main/main_screen.dart`
+   - Added `_primaryAccountId` state variable
+   - Added `_loadPrimaryAccount()` method to fetch user's first account
+   - Updated `_buildScreens()` to pass actual account ID instead of user ID
+   - Shows loading indicator while fetching account
+
+**Solution Flow**:
+```
+User Login → ensureUserExists() → Creates User + Default Account → MainScreen loads account ID → TransactionListScreen uses real account ID
+```
+
+**Action Required**: Users need to log out and log back in (or clear app data) to trigger `ensureUserExists` which now creates the default account.
 
 ---
 

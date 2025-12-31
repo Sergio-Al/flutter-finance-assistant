@@ -1,5 +1,6 @@
 import 'package:dartz/dartz.dart';
 import 'package:drift/drift.dart';
+import 'package:uuid/uuid.dart';
 
 import 'package:flutter_finance_assistant/core/errors/exceptions.dart';
 import 'package:flutter_finance_assistant/core/errors/failures.dart';
@@ -130,26 +131,49 @@ class UserRepositoryImpl implements UserRepository {
     try {
       // Check if user already exists
       final existingUser = await _database.usersDao.getUserById(userId);
-      if (existingUser != null) {
-        return const Right(null); // User already exists
+      if (existingUser == null) {
+        // Create a minimal user record
+        final now = DateTime.now();
+        final companion = UsersCompanion(
+          id: Value(userId),
+          email: Value(email ?? '$userId@placeholder.local'),
+          displayName: const Value(null),
+          photoUrl: const Value(null),
+          preferredCurrency: const Value('USD'),
+          biometricEnabled: const Value(false),
+          themePreference: const Value('system'),
+          createdAt: Value(now),
+          updatedAt: Value(now),
+          syncedAt: const Value(null),
+        );
+
+        await _database.usersDao.upsertUser(companion);
       }
 
-      // Create a minimal user record
-      final now = DateTime.now();
-      final companion = UsersCompanion(
-        id: Value(userId),
-        email: Value(email ?? '$userId@placeholder.local'),
-        displayName: const Value(null),
-        photoUrl: const Value(null),
-        preferredCurrency: const Value('USD'),
-        biometricEnabled: const Value(false),
-        themePreference: const Value('system'),
-        createdAt: Value(now),
-        updatedAt: Value(now),
-        syncedAt: const Value(null),
+      // Ensure user has at least one default account
+      final existingAccounts = await _database.accountsDao.getAllAccounts(
+        userId,
       );
+      if (existingAccounts.isEmpty) {
+        final now = DateTime.now();
+        final defaultAccountId = const Uuid().v4();
+        final accountCompanion = AccountsCompanion(
+          id: Value(defaultAccountId),
+          userId: Value(userId),
+          name: const Value('Main Account'),
+          type: const Value('cash'),
+          balance: const Value(0.0),
+          currency: const Value('USD'),
+          icon: const Value('account_balance_wallet'),
+          color: const Value(0xFF2E7D6F),
+          isActive: const Value(true),
+          createdAt: Value(now),
+          updatedAt: Value(now),
+          syncStatus: const Value('pending'),
+        );
+        await _database.accountsDao.insertAccount(accountCompanion);
+      }
 
-      await _database.usersDao.upsertUser(companion);
       return const Right(null);
     } on DatabaseException catch (e) {
       return Left(

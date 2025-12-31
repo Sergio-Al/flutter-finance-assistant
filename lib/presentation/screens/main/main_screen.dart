@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:flutter_finance_assistant/core/di/injection_container.dart';
 import 'package:flutter_finance_assistant/core/themes/app_theme.dart';
+import 'package:flutter_finance_assistant/data/datasources/local/app_database.dart';
 import 'package:flutter_finance_assistant/presentation/bloc/auth/auth_bloc.dart';
 import 'package:flutter_finance_assistant/presentation/bloc/auth/auth_state.dart';
 import 'package:flutter_finance_assistant/presentation/screens/budget/budget_list_screen.dart';
 import 'package:flutter_finance_assistant/presentation/screens/dashboard/dashboard_screen.dart';
 import 'package:flutter_finance_assistant/presentation/screens/main/widgets/main_bottom_nav.dart';
+import 'package:flutter_finance_assistant/presentation/screens/transaction/transaction_list_screen.dart';
 
 /// Main screen with bottom navigation.
 ///
@@ -24,6 +27,34 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
+  String? _primaryAccountId;
+  bool _isLoadingAccount = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPrimaryAccount();
+  }
+
+  Future<void> _loadPrimaryAccount() async {
+    final authState = context.read<AuthBloc>().state;
+    if (authState is AuthAuthenticated) {
+      final database = sl<AppDatabase>();
+      final accounts = await database.accountsDao.getAllAccounts(
+        authState.userId,
+      );
+      if (accounts.isNotEmpty && mounted) {
+        setState(() {
+          _primaryAccountId = accounts.first.id;
+          _isLoadingAccount = false;
+        });
+      } else {
+        setState(() {
+          _isLoadingAccount = false;
+        });
+      }
+    }
+  }
 
   void _onTabTapped(int index) {
     setState(() {
@@ -32,9 +63,13 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   List<Widget> _buildScreens(String userId) {
+    // Use the actual account ID if available, otherwise show loading or empty state
+    final accountId = _primaryAccountId ?? userId;
     return [
       const DashboardScreen(),
-      const _TransactionsPlaceholder(),
+      _isLoadingAccount
+          ? const Center(child: CircularProgressIndicator())
+          : TransactionListScreen(accountId: accountId),
       BudgetListScreen(userId: userId),
       const _ChatPlaceholder(),
     ];
@@ -65,7 +100,8 @@ class _MainScreenState extends State<MainScreen> {
               onTap: _onTabTapped,
             ),
             floatingActionButton: _buildFAB(),
-            floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+            floatingActionButtonLocation:
+                FloatingActionButtonLocation.centerDocked,
           ),
         );
       },
@@ -73,10 +109,11 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Widget? _buildFAB() {
-    // Only show FAB on Home and Transactions tabs
-    if (_currentIndex > 1) return null;
+    // Only show FAB on Home tab (Transactions has its own FAB)
+    if (_currentIndex != 0) return null;
 
     return FloatingActionButton(
+      heroTag: 'main_screen_fab',
       onPressed: () => _showAddOptions(context),
       backgroundColor: AppTheme.primaryLight,
       elevation: 4,
@@ -236,43 +273,6 @@ class _AddOptionItem extends StatelessWidget {
 // ══════════════════════════════════════════════════════════════════════════════
 // Placeholder screens (to be replaced with actual implementations)
 // ══════════════════════════════════════════════════════════════════════════════
-
-class _TransactionsPlaceholder extends StatelessWidget {
-  const _TransactionsPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Transactions'), centerTitle: true),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.receipt_long_outlined,
-              size: 80,
-              color: Colors.grey.withValues(alpha: 0.5),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Transactions',
-              style: Theme.of(
-                context,
-              ).textTheme.headlineSmall?.copyWith(color: Colors.grey),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Coming soon...',
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: Colors.grey),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class _ChatPlaceholder extends StatelessWidget {
   const _ChatPlaceholder();

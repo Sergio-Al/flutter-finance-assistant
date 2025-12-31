@@ -8,6 +8,7 @@ import 'package:flutter_finance_assistant/data/datasources/remote/transaction_re
 import 'package:flutter_finance_assistant/data/models/transaction_model.dart';
 import 'package:flutter_finance_assistant/domain/entities/transaction.dart';
 import 'package:flutter_finance_assistant/domain/repositories/transaction_repository.dart';
+import 'package:uuid/uuid.dart';
 
 /// Implementation of [TransactionRepository] with offline-first approach.
 ///
@@ -22,8 +23,8 @@ class TransactionRepositoryImpl implements TransactionRepository {
   TransactionRepositoryImpl({
     required AppDatabase database,
     required TransactionRemoteDataSource remoteDataSource,
-  })  : _database = database,
-        _remoteDataSource = remoteDataSource;
+  }) : _database = database,
+       _remoteDataSource = remoteDataSource;
 
   // ═══════════════════════════════════════════════════════════════════════════
   // CRUD Operations
@@ -40,15 +41,19 @@ class TransactionRepositoryImpl implements TransactionRepository {
       final transactions = entries.map(_entryToEntity).toList();
       return Right(transactions);
     } on DatabaseException catch (e) {
-      return Left(DatabaseFailure(
-        message: 'Failed to get transactions: ${e.message}',
-        originalError: e,
-      ));
+      return Left(
+        DatabaseFailure(
+          message: 'Failed to get transactions: ${e.message}',
+          originalError: e,
+        ),
+      );
     } catch (e) {
-      return Left(CacheFailure(
-        message: 'Unexpected error getting transactions: $e',
-        originalError: e,
-      ));
+      return Left(
+        CacheFailure(
+          message: 'Unexpected error getting transactions: $e',
+          originalError: e,
+        ),
+      );
     }
   }
 
@@ -61,21 +66,25 @@ class TransactionRepositoryImpl implements TransactionRepository {
         transactionId,
       );
       if (entry == null) {
-        return Left(NotFoundFailure(
-          message: 'Transaction not found: $transactionId',
-        ));
+        return Left(
+          NotFoundFailure(message: 'Transaction not found: $transactionId'),
+        );
       }
       return Right(_entryToEntity(entry));
     } on DatabaseException catch (e) {
-      return Left(DatabaseFailure(
-        message: 'Failed to get transaction: ${e.message}',
-        originalError: e,
-      ));
+      return Left(
+        DatabaseFailure(
+          message: 'Failed to get transaction: ${e.message}',
+          originalError: e,
+        ),
+      );
     } catch (e) {
-      return Left(CacheFailure(
-        message: 'Unexpected error getting transaction: $e',
-        originalError: e,
-      ));
+      return Left(
+        CacheFailure(
+          message: 'Unexpected error getting transaction: $e',
+          originalError: e,
+        ),
+      );
     }
   }
 
@@ -85,15 +94,22 @@ class TransactionRepositoryImpl implements TransactionRepository {
   ) async {
     try {
       final now = DateTime.now();
+      // generate a new ID for the transaction
       final newTransaction = transaction.copyWith(
+        id: const Uuid().v4(),
         createdAt: now,
         updatedAt: now,
         syncStatus: 'pending',
       );
 
-      await _database.transactionsDao.insertTransaction(
-        _entityToCompanion(newTransaction),
-      );
+
+      final companion = _entityToCompanion(newTransaction);
+
+      print('Creating transaction: $companion');
+      
+      await _database.transactionsDao.insertTransaction(companion);
+
+      print('Transaction created locally with ID: ${newTransaction.id}');
 
       // Add to sync queue
       await _database.syncQueueDao.enqueueCreate(
@@ -104,15 +120,19 @@ class TransactionRepositoryImpl implements TransactionRepository {
 
       return Right(newTransaction);
     } on DatabaseException catch (e) {
-      return Left(DatabaseFailure(
-        message: 'Failed to create transaction: ${e.message}',
-        originalError: e,
-      ));
+      return Left(
+        DatabaseFailure(
+          message: 'Failed to create transaction: ${e.message}',
+          originalError: e,
+        ),
+      );
     } catch (e) {
-      return Left(CacheFailure(
-        message: 'Unexpected error creating transaction: $e',
-        originalError: e,
-      ));
+      return Left(
+        CacheFailure(
+          message: 'Unexpected error creating transaction: $e',
+          originalError: e,
+        ),
+      );
     }
   }
 
@@ -131,29 +151,37 @@ class TransactionRepositoryImpl implements TransactionRepository {
       );
 
       if (!success) {
-        return Left(NotFoundFailure(
-          message: 'Transaction not found for update: ${transaction.id}',
-        ));
+        return Left(
+          NotFoundFailure(
+            message: 'Transaction not found for update: ${transaction.id}',
+          ),
+        );
       }
 
       // Add to sync queue
       await _database.syncQueueDao.enqueueUpdate(
         tableName: 'transactions',
         recordId: updatedTransaction.id,
-        data: TransactionModel.fromEntity(updatedTransaction).toJson().toString(),
+        data: TransactionModel.fromEntity(
+          updatedTransaction,
+        ).toJson().toString(),
       );
 
       return Right(updatedTransaction);
     } on DatabaseException catch (e) {
-      return Left(DatabaseFailure(
-        message: 'Failed to update transaction: ${e.message}',
-        originalError: e,
-      ));
+      return Left(
+        DatabaseFailure(
+          message: 'Failed to update transaction: ${e.message}',
+          originalError: e,
+        ),
+      );
     } catch (e) {
-      return Left(CacheFailure(
-        message: 'Unexpected error updating transaction: $e',
-        originalError: e,
-      ));
+      return Left(
+        CacheFailure(
+          message: 'Unexpected error updating transaction: $e',
+          originalError: e,
+        ),
+      );
     }
   }
 
@@ -164,9 +192,11 @@ class TransactionRepositoryImpl implements TransactionRepository {
         transactionId,
       );
       if (deletedCount == 0) {
-        return Left(NotFoundFailure(
-          message: 'Transaction not found for deletion: $transactionId',
-        ));
+        return Left(
+          NotFoundFailure(
+            message: 'Transaction not found for deletion: $transactionId',
+          ),
+        );
       }
 
       // Add to sync queue
@@ -177,15 +207,19 @@ class TransactionRepositoryImpl implements TransactionRepository {
 
       return const Right(null);
     } on DatabaseException catch (e) {
-      return Left(DatabaseFailure(
-        message: 'Failed to delete transaction: ${e.message}',
-        originalError: e,
-      ));
+      return Left(
+        DatabaseFailure(
+          message: 'Failed to delete transaction: ${e.message}',
+          originalError: e,
+        ),
+      );
     } catch (e) {
-      return Left(CacheFailure(
-        message: 'Unexpected error deleting transaction: $e',
-        originalError: e,
-      ));
+      return Left(
+        CacheFailure(
+          message: 'Unexpected error deleting transaction: $e',
+          originalError: e,
+        ),
+      );
     }
   }
 
@@ -206,15 +240,19 @@ class TransactionRepositoryImpl implements TransactionRepository {
       final transactions = entries.map(_entryToEntity).toList();
       return Right(transactions);
     } on DatabaseException catch (e) {
-      return Left(DatabaseFailure(
-        message: 'Failed to get transactions by type: ${e.message}',
-        originalError: e,
-      ));
+      return Left(
+        DatabaseFailure(
+          message: 'Failed to get transactions by type: ${e.message}',
+          originalError: e,
+        ),
+      );
     } catch (e) {
-      return Left(CacheFailure(
-        message: 'Unexpected error getting transactions by type: $e',
-        originalError: e,
-      ));
+      return Left(
+        CacheFailure(
+          message: 'Unexpected error getting transactions by type: $e',
+          originalError: e,
+        ),
+      );
     }
   }
 
@@ -231,15 +269,19 @@ class TransactionRepositoryImpl implements TransactionRepository {
       final transactions = entries.map(_entryToEntity).toList();
       return Right(transactions);
     } on DatabaseException catch (e) {
-      return Left(DatabaseFailure(
-        message: 'Failed to get transactions by category: ${e.message}',
-        originalError: e,
-      ));
+      return Left(
+        DatabaseFailure(
+          message: 'Failed to get transactions by category: ${e.message}',
+          originalError: e,
+        ),
+      );
     } catch (e) {
-      return Left(CacheFailure(
-        message: 'Unexpected error getting transactions by category: $e',
-        originalError: e,
-      ));
+      return Left(
+        CacheFailure(
+          message: 'Unexpected error getting transactions by category: $e',
+          originalError: e,
+        ),
+      );
     }
   }
 
@@ -258,15 +300,19 @@ class TransactionRepositoryImpl implements TransactionRepository {
       final transactions = entries.map(_entryToEntity).toList();
       return Right(transactions);
     } on DatabaseException catch (e) {
-      return Left(DatabaseFailure(
-        message: 'Failed to get transactions by date range: ${e.message}',
-        originalError: e,
-      ));
+      return Left(
+        DatabaseFailure(
+          message: 'Failed to get transactions by date range: ${e.message}',
+          originalError: e,
+        ),
+      );
     } catch (e) {
-      return Left(CacheFailure(
-        message: 'Unexpected error getting transactions by date range: $e',
-        originalError: e,
-      ));
+      return Left(
+        CacheFailure(
+          message: 'Unexpected error getting transactions by date range: $e',
+          originalError: e,
+        ),
+      );
     }
   }
 
@@ -288,15 +334,19 @@ class TransactionRepositoryImpl implements TransactionRepository {
       final transactions = entries.map(_entryToEntity).toList();
       return Right(transactions);
     } on DatabaseException catch (e) {
-      return Left(DatabaseFailure(
-        message: 'Failed to get transactions by month: ${e.message}',
-        originalError: e,
-      ));
+      return Left(
+        DatabaseFailure(
+          message: 'Failed to get transactions by month: ${e.message}',
+          originalError: e,
+        ),
+      );
     } catch (e) {
-      return Left(CacheFailure(
-        message: 'Unexpected error getting transactions by month: $e',
-        originalError: e,
-      ));
+      return Left(
+        CacheFailure(
+          message: 'Unexpected error getting transactions by month: $e',
+          originalError: e,
+        ),
+      );
     }
   }
 
@@ -313,15 +363,19 @@ class TransactionRepositoryImpl implements TransactionRepository {
       final transactions = entries.map(_entryToEntity).toList();
       return Right(transactions);
     } on DatabaseException catch (e) {
-      return Left(DatabaseFailure(
-        message: 'Failed to get recent transactions: ${e.message}',
-        originalError: e,
-      ));
+      return Left(
+        DatabaseFailure(
+          message: 'Failed to get recent transactions: ${e.message}',
+          originalError: e,
+        ),
+      );
     } catch (e) {
-      return Left(CacheFailure(
-        message: 'Unexpected error getting recent transactions: $e',
-        originalError: e,
-      ));
+      return Left(
+        CacheFailure(
+          message: 'Unexpected error getting recent transactions: $e',
+          originalError: e,
+        ),
+      );
     }
   }
 
@@ -358,15 +412,19 @@ class TransactionRepositoryImpl implements TransactionRepository {
 
       return Right(transactions);
     } on DatabaseException catch (e) {
-      return Left(DatabaseFailure(
-        message: 'Failed to get all user transactions: ${e.message}',
-        originalError: e,
-      ));
+      return Left(
+        DatabaseFailure(
+          message: 'Failed to get all user transactions: ${e.message}',
+          originalError: e,
+        ),
+      );
     } catch (e) {
-      return Left(CacheFailure(
-        message: 'Unexpected error getting all user transactions: $e',
-        originalError: e,
-      ));
+      return Left(
+        CacheFailure(
+          message: 'Unexpected error getting all user transactions: $e',
+          originalError: e,
+        ),
+      );
     }
   }
 
@@ -384,15 +442,19 @@ class TransactionRepositoryImpl implements TransactionRepository {
       final transactions = entries.map(_entryToEntity).toList();
       return Right(transactions);
     } on DatabaseException catch (e) {
-      return Left(DatabaseFailure(
-        message: 'Failed to search transactions: ${e.message}',
-        originalError: e,
-      ));
+      return Left(
+        DatabaseFailure(
+          message: 'Failed to search transactions: ${e.message}',
+          originalError: e,
+        ),
+      );
     } catch (e) {
-      return Left(CacheFailure(
-        message: 'Unexpected error searching transactions: $e',
-        originalError: e,
-      ));
+      return Left(
+        CacheFailure(
+          message: 'Unexpected error searching transactions: $e',
+          originalError: e,
+        ),
+      );
     }
   }
 
@@ -426,15 +488,20 @@ class TransactionRepositoryImpl implements TransactionRepository {
 
       if (startDate != null) {
         entries = entries
-            .where((e) =>
-                e.date.isAfter(startDate) || e.date.isAtSameMomentAs(startDate))
+            .where(
+              (e) =>
+                  e.date.isAfter(startDate) ||
+                  e.date.isAtSameMomentAs(startDate),
+            )
             .toList();
       }
 
       if (endDate != null) {
         entries = entries
-            .where((e) =>
-                e.date.isBefore(endDate) || e.date.isAtSameMomentAs(endDate))
+            .where(
+              (e) =>
+                  e.date.isBefore(endDate) || e.date.isAtSameMomentAs(endDate),
+            )
             .toList();
       }
 
@@ -458,15 +525,19 @@ class TransactionRepositoryImpl implements TransactionRepository {
       final transactions = entries.map(_entryToEntity).toList();
       return Right(transactions);
     } on DatabaseException catch (e) {
-      return Left(DatabaseFailure(
-        message: 'Failed to get filtered transactions: ${e.message}',
-        originalError: e,
-      ));
+      return Left(
+        DatabaseFailure(
+          message: 'Failed to get filtered transactions: ${e.message}',
+          originalError: e,
+        ),
+      );
     } catch (e) {
-      return Left(CacheFailure(
-        message: 'Unexpected error getting filtered transactions: $e',
-        originalError: e,
-      ));
+      return Left(
+        CacheFailure(
+          message: 'Unexpected error getting filtered transactions: $e',
+          originalError: e,
+        ),
+      );
     }
   }
 
@@ -489,15 +560,19 @@ class TransactionRepositoryImpl implements TransactionRepository {
       );
       return Right(total);
     } on DatabaseException catch (e) {
-      return Left(DatabaseFailure(
-        message: 'Failed to get total spent: ${e.message}',
-        originalError: e,
-      ));
+      return Left(
+        DatabaseFailure(
+          message: 'Failed to get total spent: ${e.message}',
+          originalError: e,
+        ),
+      );
     } catch (e) {
-      return Left(CacheFailure(
-        message: 'Unexpected error getting total spent: $e',
-        originalError: e,
-      ));
+      return Left(
+        CacheFailure(
+          message: 'Unexpected error getting total spent: $e',
+          originalError: e,
+        ),
+      );
     }
   }
 
@@ -516,15 +591,19 @@ class TransactionRepositoryImpl implements TransactionRepository {
       );
       return Right(total);
     } on DatabaseException catch (e) {
-      return Left(DatabaseFailure(
-        message: 'Failed to get total income: ${e.message}',
-        originalError: e,
-      ));
+      return Left(
+        DatabaseFailure(
+          message: 'Failed to get total income: ${e.message}',
+          originalError: e,
+        ),
+      );
     } catch (e) {
-      return Left(CacheFailure(
-        message: 'Unexpected error getting total income: $e',
-        originalError: e,
-      ));
+      return Left(
+        CacheFailure(
+          message: 'Unexpected error getting total income: $e',
+          originalError: e,
+        ),
+      );
     }
   }
 
@@ -552,15 +631,19 @@ class TransactionRepositoryImpl implements TransactionRepository {
 
       return Right(spendingByCategory);
     } on DatabaseException catch (e) {
-      return Left(DatabaseFailure(
-        message: 'Failed to get spending by category: ${e.message}',
-        originalError: e,
-      ));
+      return Left(
+        DatabaseFailure(
+          message: 'Failed to get spending by category: ${e.message}',
+          originalError: e,
+        ),
+      );
     } catch (e) {
-      return Left(CacheFailure(
-        message: 'Unexpected error getting spending by category: $e',
-        originalError: e,
-      ));
+      return Left(
+        CacheFailure(
+          message: 'Unexpected error getting spending by category: $e',
+          originalError: e,
+        ),
+      );
     }
   }
 
@@ -582,21 +665,29 @@ class TransactionRepositoryImpl implements TransactionRepository {
       final Map<DateTime, double> dailySpending = {};
       for (final entry in expenseEntries) {
         // Normalize date to midnight for grouping
-        final dateKey = DateTime(entry.date.year, entry.date.month, entry.date.day);
+        final dateKey = DateTime(
+          entry.date.year,
+          entry.date.month,
+          entry.date.day,
+        );
         dailySpending[dateKey] = (dailySpending[dateKey] ?? 0) + entry.amount;
       }
 
       return Right(dailySpending);
     } on DatabaseException catch (e) {
-      return Left(DatabaseFailure(
-        message: 'Failed to get daily spending: ${e.message}',
-        originalError: e,
-      ));
+      return Left(
+        DatabaseFailure(
+          message: 'Failed to get daily spending: ${e.message}',
+          originalError: e,
+        ),
+      );
     } catch (e) {
-      return Left(CacheFailure(
-        message: 'Unexpected error getting daily spending: $e',
-        originalError: e,
-      ));
+      return Left(
+        CacheFailure(
+          message: 'Unexpected error getting daily spending: $e',
+          originalError: e,
+        ),
+      );
     }
   }
 
@@ -629,15 +720,19 @@ class TransactionRepositoryImpl implements TransactionRepository {
 
       return Right(monthlySpending);
     } on DatabaseException catch (e) {
-      return Left(DatabaseFailure(
-        message: 'Failed to get monthly spending: ${e.message}',
-        originalError: e,
-      ));
+      return Left(
+        DatabaseFailure(
+          message: 'Failed to get monthly spending: ${e.message}',
+          originalError: e,
+        ),
+      );
     } catch (e) {
-      return Left(CacheFailure(
-        message: 'Unexpected error getting monthly spending: $e',
-        originalError: e,
-      ));
+      return Left(
+        CacheFailure(
+          message: 'Unexpected error getting monthly spending: $e',
+          originalError: e,
+        ),
+      );
     }
   }
 
@@ -662,15 +757,19 @@ class TransactionRepositoryImpl implements TransactionRepository {
 
       return Right(countByCategory);
     } on DatabaseException catch (e) {
-      return Left(DatabaseFailure(
-        message: 'Failed to get transaction count by category: ${e.message}',
-        originalError: e,
-      ));
+      return Left(
+        DatabaseFailure(
+          message: 'Failed to get transaction count by category: ${e.message}',
+          originalError: e,
+        ),
+      );
     } catch (e) {
-      return Left(CacheFailure(
-        message: 'Unexpected error getting transaction count by category: $e',
-        originalError: e,
-      ));
+      return Left(
+        CacheFailure(
+          message: 'Unexpected error getting transaction count by category: $e',
+          originalError: e,
+        ),
+      );
     }
   }
 
@@ -689,15 +788,19 @@ class TransactionRepositoryImpl implements TransactionRepository {
       final transactions = entries.map(_entryToEntity).toList();
       return Right(transactions);
     } on DatabaseException catch (e) {
-      return Left(DatabaseFailure(
-        message: 'Failed to get recurring transactions: ${e.message}',
-        originalError: e,
-      ));
+      return Left(
+        DatabaseFailure(
+          message: 'Failed to get recurring transactions: ${e.message}',
+          originalError: e,
+        ),
+      );
     } catch (e) {
-      return Left(CacheFailure(
-        message: 'Unexpected error getting recurring transactions: $e',
-        originalError: e,
-      ));
+      return Left(
+        CacheFailure(
+          message: 'Unexpected error getting recurring transactions: $e',
+          originalError: e,
+        ),
+      );
     }
   }
 
@@ -707,7 +810,9 @@ class TransactionRepositoryImpl implements TransactionRepository {
   ) async {
     try {
       // Get the recurring rule to find the template transaction
-      final ruleEntry = await _database.recurringRulesDao.getRuleById(recurringId);
+      final ruleEntry = await _database.recurringRulesDao.getRuleById(
+        recurringId,
+      );
       if (ruleEntry == null) {
         return const Right([]);
       }
@@ -731,15 +836,20 @@ class TransactionRepositoryImpl implements TransactionRepository {
       final transactions = filteredEntries.map(_entryToEntity).toList();
       return Right(transactions);
     } on DatabaseException catch (e) {
-      return Left(DatabaseFailure(
-        message: 'Failed to get transactions by recurring rule: ${e.message}',
-        originalError: e,
-      ));
+      return Left(
+        DatabaseFailure(
+          message: 'Failed to get transactions by recurring rule: ${e.message}',
+          originalError: e,
+        ),
+      );
     } catch (e) {
-      return Left(CacheFailure(
-        message: 'Unexpected error getting transactions by recurring rule: $e',
-        originalError: e,
-      ));
+      return Left(
+        CacheFailure(
+          message:
+              'Unexpected error getting transactions by recurring rule: $e',
+          originalError: e,
+        ),
+      );
     }
   }
 
@@ -751,19 +861,21 @@ class TransactionRepositoryImpl implements TransactionRepository {
   Stream<Either<Failure, List<Transaction>>> watchTransactions(
     String accountId,
   ) {
-    return _database.transactionsDao.watchAllTransactions(accountId).map(
-      (entries) {
-        try {
-          final transactions = entries.map(_entryToEntity).toList();
-          return Right<Failure, List<Transaction>>(transactions);
-        } catch (e) {
-          return Left<Failure, List<Transaction>>(CacheFailure(
+    return _database.transactionsDao.watchAllTransactions(accountId).map((
+      entries,
+    ) {
+      try {
+        final transactions = entries.map(_entryToEntity).toList();
+        return Right<Failure, List<Transaction>>(transactions);
+      } catch (e) {
+        return Left<Failure, List<Transaction>>(
+          CacheFailure(
             message: 'Error watching transactions: $e',
             originalError: e,
-          ));
-        }
-      },
-    );
+          ),
+        );
+      }
+    });
   }
 
   @override
@@ -773,19 +885,19 @@ class TransactionRepositoryImpl implements TransactionRepository {
   }) {
     return _database.transactionsDao
         .watchRecentTransactions(accountId, limit: limit)
-        .map(
-      (entries) {
-        try {
-          final transactions = entries.map(_entryToEntity).toList();
-          return Right<Failure, List<Transaction>>(transactions);
-        } catch (e) {
-          return Left<Failure, List<Transaction>>(CacheFailure(
-            message: 'Error watching recent transactions: $e',
-            originalError: e,
-          ));
-        }
-      },
-    );
+        .map((entries) {
+          try {
+            final transactions = entries.map(_entryToEntity).toList();
+            return Right<Failure, List<Transaction>>(transactions);
+          } catch (e) {
+            return Left<Failure, List<Transaction>>(
+              CacheFailure(
+                message: 'Error watching recent transactions: $e',
+                originalError: e,
+              ),
+            );
+          }
+        });
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -795,12 +907,13 @@ class TransactionRepositoryImpl implements TransactionRepository {
   /// Sync transactions from remote to local database.
   Future<Either<Failure, void>> syncFromRemote(String userId) async {
     try {
-      final remoteTransactions = await _remoteDataSource.getTransactions(userId);
+      final remoteTransactions = await _remoteDataSource.getTransactions(
+        userId,
+      );
 
       for (final model in remoteTransactions) {
-        final existingEntry = await _database.transactionsDao.getTransactionById(
-          model.id,
-        );
+        final existingEntry = await _database.transactionsDao
+            .getTransactionById(model.id);
 
         if (existingEntry == null) {
           await _database.transactionsDao.insertTransaction(
@@ -815,27 +928,34 @@ class TransactionRepositoryImpl implements TransactionRepository {
 
       return const Right(null);
     } on ServerException catch (e) {
-      return Left(ServerFailure(
-        message: 'Failed to sync transactions from remote: ${e.message}',
-        originalError: e,
-      ));
+      return Left(
+        ServerFailure(
+          message: 'Failed to sync transactions from remote: ${e.message}',
+          originalError: e,
+        ),
+      );
     } on NetworkException catch (e) {
-      return Left(NetworkFailure(
-        message: 'Network error syncing transactions: ${e.message}',
-        originalError: e,
-      ));
+      return Left(
+        NetworkFailure(
+          message: 'Network error syncing transactions: ${e.message}',
+          originalError: e,
+        ),
+      );
     } catch (e) {
-      return Left(SyncFailure(
-        message: 'Unexpected error syncing transactions: $e',
-        originalError: e,
-      ));
+      return Left(
+        SyncFailure(
+          message: 'Unexpected error syncing transactions: $e',
+          originalError: e,
+        ),
+      );
     }
   }
 
   /// Push pending local changes to remote.
   Future<Either<Failure, void>> syncToRemote(String userId) async {
     try {
-      final pendingTransactions = await _database.transactionsDao.getPendingSync();
+      final pendingTransactions = await _database.transactionsDao
+          .getPendingSync();
 
       for (final entry in pendingTransactions) {
         final model = TransactionModel.fromEntity(_entryToEntity(entry));
@@ -845,20 +965,26 @@ class TransactionRepositoryImpl implements TransactionRepository {
 
       return const Right(null);
     } on ServerException catch (e) {
-      return Left(ServerFailure(
-        message: 'Failed to sync transactions to remote: ${e.message}',
-        originalError: e,
-      ));
+      return Left(
+        ServerFailure(
+          message: 'Failed to sync transactions to remote: ${e.message}',
+          originalError: e,
+        ),
+      );
     } on NetworkException catch (e) {
-      return Left(NetworkFailure(
-        message: 'Network error syncing transactions: ${e.message}',
-        originalError: e,
-      ));
+      return Left(
+        NetworkFailure(
+          message: 'Network error syncing transactions: ${e.message}',
+          originalError: e,
+        ),
+      );
     } catch (e) {
-      return Left(SyncFailure(
-        message: 'Unexpected error syncing transactions: $e',
-        originalError: e,
-      ));
+      return Left(
+        SyncFailure(
+          message: 'Unexpected error syncing transactions: $e',
+          originalError: e,
+        ),
+      );
     }
   }
 
@@ -872,9 +998,8 @@ class TransactionRepositoryImpl implements TransactionRepository {
           .getTransactionsModifiedAfter(userId, lastSyncTime);
 
       for (final model in modifiedTransactions) {
-        final existingEntry = await _database.transactionsDao.getTransactionById(
-          model.id,
-        );
+        final existingEntry = await _database.transactionsDao
+            .getTransactionById(model.id);
 
         if (existingEntry == null) {
           await _database.transactionsDao.insertTransaction(
@@ -889,20 +1014,26 @@ class TransactionRepositoryImpl implements TransactionRepository {
 
       return const Right(null);
     } on ServerException catch (e) {
-      return Left(ServerFailure(
-        message: 'Failed incremental sync: ${e.message}',
-        originalError: e,
-      ));
+      return Left(
+        ServerFailure(
+          message: 'Failed incremental sync: ${e.message}',
+          originalError: e,
+        ),
+      );
     } on NetworkException catch (e) {
-      return Left(NetworkFailure(
-        message: 'Network error during incremental sync: ${e.message}',
-        originalError: e,
-      ));
+      return Left(
+        NetworkFailure(
+          message: 'Network error during incremental sync: ${e.message}',
+          originalError: e,
+        ),
+      );
     } catch (e) {
-      return Left(SyncFailure(
-        message: 'Unexpected error during incremental sync: $e',
-        originalError: e,
-      ));
+      return Left(
+        SyncFailure(
+          message: 'Unexpected error during incremental sync: $e',
+          originalError: e,
+        ),
+      );
     }
   }
 
@@ -987,7 +1118,11 @@ class TransactionRepositoryImpl implements TransactionRepository {
     if (tagsString == null || tagsString.isEmpty) {
       return [];
     }
-    return tagsString.split(',').map((t) => t.trim()).where((t) => t.isNotEmpty).toList();
+    return tagsString
+        .split(',')
+        .map((t) => t.trim())
+        .where((t) => t.isNotEmpty)
+        .toList();
   }
 
   /// Convert tags list to string for storage.

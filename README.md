@@ -415,9 +415,52 @@ dart run build_runner build --delete-conflicting-outputs
 flutterfire configure
 ```
 
-5. Run the app
+5. **iOS Setup** (Important for MLKit/Firebase)
+```bash
+# Ensure iOS deployment target is set to 15.5 in ios/Podfile:
+# platform :ios, '15.5'
+
+# Install/update CocoaPods dependencies
+cd ios && pod install --repo-update && cd ..
+```
+
+6. Run the app
 ```bash
 flutter run
+```
+
+### Troubleshooting iOS Build
+
+If you encounter iOS build errors related to deployment target mismatch:
+
+1. **Update Podfile** - Set minimum iOS version to 15.5:
+```ruby
+platform :ios, '15.5'
+```
+
+2. **Update post_install in Podfile**:
+```ruby
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    flutter_additional_ios_build_settings(target)
+    target.build_configurations.each do |config|
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.5'
+    end
+  end
+end
+```
+
+3. **Install flutterfire CLI** (if "flutterfire: command not found"):
+```bash
+dart pub global activate flutterfire_cli
+export PATH="$PATH:$HOME/.pub-cache/bin"
+```
+
+4. **Clean and rebuild**:
+```bash
+cd ios && rm -rf Pods Podfile.lock && pod install && cd ..
+flutter clean && flutter pub get
+flutter build ios --simulator
 ```
 
 ### Environment Variables
@@ -455,3 +498,22 @@ See the `.cursor/` folder for detailed documentation:
 ## 📄 License
 
 This project is licensed under the MIT License.
+
+
+
+## Additional
+
+Widget	Purpose
+transaction_date_header.dart	Sticky date header for grouping transactions by day/week/month
+transaction_chart_card.dart	Mini chart showing spending trends (line/bar chart)
+transaction_receipt_preview.dart	Preview of attached receipt image with zoom
+transaction_category_breakdown.dart	Pie chart showing spending by category
+transaction_quick_stats_row.dart	Quick stats: avg daily spend, biggest expense, etc.
+edit_transaction_sheet.dart	Bottom sheet for editing existing transactions
+transaction_skeleton_loader.dart	Shimmer loading placeholders
+transaction_empty_state.dart	Empty state illustration when no transactions
+transaction_ai_suggestion_card.dart	Card showing AI categorization suggestions
+transaction_recurring_badge.dart	Badge/indicator for recurring transactions
+transaction_export_sheet.dart	Bottom sheet for exporting transactions (PDF/CSV)
+transaction_bulk_actions_bar.dart	Multi-select actions bar for bulk delete/categorize
+transaction_split_sheet.dart	Sheet for splitting a transaction into multiple categories

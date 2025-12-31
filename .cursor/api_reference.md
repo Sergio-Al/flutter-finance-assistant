@@ -2392,7 +2392,7 @@ if (newCategory != null) {
 ### Usage
 **Location**: `lib/domain/usecases/user/ensure_user_exists.dart`
 
-Ensures user exists in local Drift database to satisfy FK constraints:
+Ensures user exists in local Drift database to satisfy FK constraints. **Also creates a default account** if the user has no accounts.
 
 ```dart
 final useCase = EnsureUserExistsUseCase(userRepository);
@@ -2408,6 +2408,26 @@ result.fold(
   (failure) => log('Failed: ${failure.message}'),
   (_) => log('User exists in local DB'),
 );
+```
+
+### What It Creates
+1. **User record** in local DB (if not exists)
+2. **Default "Main Account"** (if user has no accounts) - This ensures FK constraints are satisfied when creating transactions
+
+### Default Account Properties
+```dart
+AccountsCompanion(
+  id: Value(uuid.v4()),
+  userId: Value(userId),
+  name: const Value('Main Account'),
+  type: const Value('cash'),
+  balance: const Value(0.0),
+  currency: const Value('USD'),
+  icon: const Value('account_balance_wallet'),
+  color: const Value(0xFF2E7D6F),
+  isActive: const Value(true),
+  syncStatus: const Value('pending'),
+)
 ```
 
 ### Integration in AuthBloc
@@ -2428,9 +2448,9 @@ await result.fold(
 ```
 
 ### Why This Exists
-- Local Drift database has FK constraints (Categories.userId → Users.id)
+- Local Drift database has FK constraints (Categories.userId → Users.id, Transactions.accountId → Accounts.id)
 - Firebase Auth creates users in cloud, not in local DB
-- Without this, creating categories/budgets fails with FK error
+- Without this, creating categories/budgets/transactions fails with FK error
 - This use case is idempotent - safe to call multiple times
 
 ---

@@ -4,22 +4,27 @@ import 'package:flutter_finance_assistant/data/datasources/local/app_database.da
 import 'package:flutter_finance_assistant/data/datasources/remote/budget_remote_datasource.dart';
 import 'package:flutter_finance_assistant/data/datasources/remote/category_remote_datasource.dart';
 import 'package:flutter_finance_assistant/data/datasources/remote/firebase_service.dart';
+import 'package:flutter_finance_assistant/data/datasources/remote/transaction_remote_datasource.dart';
 import 'package:flutter_finance_assistant/data/datasources/remote/user_remote_datasource.dart';
 import 'package:flutter_finance_assistant/data/repositories/auth_repository_impl.dart';
 import 'package:flutter_finance_assistant/data/repositories/budget_repository_impl.dart';
 import 'package:flutter_finance_assistant/data/repositories/category_repository_impl.dart';
+import 'package:flutter_finance_assistant/data/repositories/transaction_repository_impl.dart';
 import 'package:flutter_finance_assistant/data/repositories/user_repository_impl.dart';
 import 'package:flutter_finance_assistant/domain/repositories/auth_repository.dart';
 import 'package:flutter_finance_assistant/domain/repositories/budget_repository.dart';
 import 'package:flutter_finance_assistant/domain/repositories/category_repository.dart';
+import 'package:flutter_finance_assistant/domain/repositories/transaction_repository.dart';
 import 'package:flutter_finance_assistant/domain/repositories/user_repository.dart';
 import 'package:flutter_finance_assistant/domain/usecases/auth/auth_usecases.dart';
 import 'package:flutter_finance_assistant/domain/usecases/budget/budget_usecases.dart';
 import 'package:flutter_finance_assistant/domain/usecases/category/category_usecases.dart';
+import 'package:flutter_finance_assistant/domain/usecases/transaction/transaction_usecases.dart';
 import 'package:flutter_finance_assistant/domain/usecases/user/user_usecases.dart';
 import 'package:flutter_finance_assistant/presentation/bloc/auth/auth_bloc.dart';
 import 'package:flutter_finance_assistant/presentation/bloc/budget/budget_bloc.dart';
 import 'package:flutter_finance_assistant/presentation/bloc/category/category_bloc.dart';
+import 'package:flutter_finance_assistant/presentation/bloc/transaction/transaction_bloc.dart';
 
 final sl = GetIt.instance;
 
@@ -51,6 +56,10 @@ Future<void> initDependencies() async {
     () => UserRemoteDataSourceImpl(firebaseService: sl()),
   );
 
+  sl.registerLazySingleton<TransactionRemoteDataSource>(
+    () => TransactionRemoteDataSourceImpl(firebaseService: sl()),
+  );
+
   // ═══════════════════════════════════════════════════════════════════════════
   // Repositories
   // ═══════════════════════════════════════════════════════════════════════════
@@ -78,6 +87,14 @@ Future<void> initDependencies() async {
       database: sl(),
       remoteDataSource: sl(),
       userRepository: sl(),
+    ),
+  );
+
+  // Transaction Repository (offline-first with Drift + Firestore sync)
+  sl.registerLazySingleton<TransactionRepository>(
+    () => TransactionRepositoryImpl(
+      database: sl(),
+      remoteDataSource: sl<TransactionRemoteDataSource>(),
     ),
   );
 
@@ -147,6 +164,15 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton(() => InitializeDefaultCategoriesUseCase(sl()));
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // Use Cases - Transaction
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  sl.registerLazySingleton(() => CreateTransactionUseCase(sl()));
+  sl.registerLazySingleton(() => GetTransactionsByDateRangeUseCase(sl()));
+  sl.registerLazySingleton(() => GetSpendingSummaryUseCase(sl()));
+  sl.registerLazySingleton(() => WatchRecentTransactionsUseCase(sl()));
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // BLoCs
   // ═══════════════════════════════════════════════════════════════════════════
 
@@ -193,6 +219,15 @@ Future<void> initDependencies() async {
       searchCategories: sl(),
       watchCategories: sl(),
       initializeDefaults: sl(),
+    ),
+  );
+
+  sl.registerFactory(
+    () => TransactionBloc(
+      createTransaction: sl(),
+      getTransactionsByDateRange: sl(),
+      getSpendingSummary: sl(),
+      watchRecentTransactions: sl(),
     ),
   );
 }
