@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dartz/dartz.dart';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
@@ -99,7 +101,7 @@ class RecurringRuleRepositoryImpl implements RecurringRuleRepository {
       await _database.syncQueueDao.enqueueCreate(
         tableName: 'recurring_rules',
         recordId: newRule.id,
-        data: RecurringRuleModel.fromEntity(newRule).toJson().toString(),
+        data: jsonEncode(RecurringRuleModel.fromEntity(newRule).toJson()),
       );
 
       return Right(newRule);
@@ -140,7 +142,7 @@ class RecurringRuleRepositoryImpl implements RecurringRuleRepository {
       await _database.syncQueueDao.enqueueUpdate(
         tableName: 'recurring_rules',
         recordId: updatedRule.id,
-        data: RecurringRuleModel.fromEntity(updatedRule).toJson().toString(),
+        data: jsonEncode(RecurringRuleModel.fromEntity(updatedRule).toJson()),
       );
 
       return Right(updatedRule);

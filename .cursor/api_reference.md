@@ -1359,11 +1359,11 @@ class ExampleRepositoryImpl implements ExampleRepository {
       // 1. Save locally
       await _database.exampleDao.insertEntity(_entityToCompanion(entity));
       
-      // 2. Queue for sync
+      // 2. Queue for sync (IMPORTANT: use jsonEncode, NOT toString())
       await _database.syncQueueDao.enqueueCreate(
         tableName: 'examples',
         recordId: entity.id,
-        data: EntityModel.fromEntity(entity).toJson().toString(),
+        data: jsonEncode(EntityModel.fromEntity(entity).toJson()),
       );
       
       return Right(entity);

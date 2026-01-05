@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -145,7 +146,7 @@ class ReceiptRepositoryImpl implements ReceiptRepository {
       await _database.syncQueueDao.enqueueCreate(
         tableName: 'receipts',
         recordId: receipt.id,
-        data: ReceiptModel.fromEntity(receipt).toJson().toString(),
+        data: jsonEncode(ReceiptModel.fromEntity(receipt).toJson()),
       );
 
       return Right(receipt);
@@ -200,7 +201,7 @@ class ReceiptRepositoryImpl implements ReceiptRepository {
       await _database.syncQueueDao.enqueueUpdate(
         tableName: 'receipts',
         recordId: receipt.id,
-        data: ReceiptModel.fromEntity(receipt).toJson().toString(),
+        data: jsonEncode(ReceiptModel.fromEntity(receipt).toJson()),
       );
 
       return Right(receipt);
@@ -292,7 +293,7 @@ class ReceiptRepositoryImpl implements ReceiptRepository {
       await _database.syncQueueDao.enqueueCreate(
         tableName: 'receipts',
         recordId: receiptId,
-        data: ReceiptModel.fromEntity(receipt).toJson().toString(),
+        data: jsonEncode(ReceiptModel.fromEntity(receipt).toJson()),
       );
 
       return Right(receipt);

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dartz/dartz.dart';
 import 'package:drift/drift.dart';
 
@@ -115,7 +117,7 @@ class TransactionRepositoryImpl implements TransactionRepository {
       await _database.syncQueueDao.enqueueCreate(
         tableName: 'transactions',
         recordId: newTransaction.id,
-        data: TransactionModel.fromEntity(newTransaction).toJson().toString(),
+        data: jsonEncode(TransactionModel.fromEntity(newTransaction).toJson()),
       );
 
       return Right(newTransaction);
@@ -162,9 +164,9 @@ class TransactionRepositoryImpl implements TransactionRepository {
       await _database.syncQueueDao.enqueueUpdate(
         tableName: 'transactions',
         recordId: updatedTransaction.id,
-        data: TransactionModel.fromEntity(
+        data: jsonEncode(TransactionModel.fromEntity(
           updatedTransaction,
-        ).toJson().toString(),
+        ).toJson()),
       );
 
       return Right(updatedTransaction);

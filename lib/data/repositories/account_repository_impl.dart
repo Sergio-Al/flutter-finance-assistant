@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dartz/dartz.dart';
 import 'package:drift/drift.dart';
 
@@ -151,7 +153,7 @@ class AccountRepositoryImpl implements AccountRepository {
       await _database.syncQueueDao.enqueueCreate(
         tableName: 'accounts',
         recordId: newAccount.id,
-        data: AccountModel.fromEntity(newAccount).toJson().toString(),
+        data: jsonEncode(AccountModel.fromEntity(newAccount).toJson()),
       );
 
       return Right(newAccount);
@@ -197,7 +199,7 @@ class AccountRepositoryImpl implements AccountRepository {
       await _database.syncQueueDao.enqueueUpdate(
         tableName: 'accounts',
         recordId: updatedAccount.id,
-        data: AccountModel.fromEntity(updatedAccount).toJson().toString(),
+        data: jsonEncode(AccountModel.fromEntity(updatedAccount).toJson()),
       );
 
       return Right(updatedAccount);

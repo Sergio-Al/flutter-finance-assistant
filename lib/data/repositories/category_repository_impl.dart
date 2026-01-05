@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dartz/dartz.dart';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
@@ -276,7 +278,7 @@ class CategoryRepositoryImpl implements CategoryRepository {
       await _database.syncQueueDao.enqueueCreate(
         tableName: 'categories',
         recordId: newCategory.id,
-        data: CategoryModel.fromEntity(newCategory).toJson().toString(),
+        data: jsonEncode(CategoryModel.fromEntity(newCategory).toJson()),
       );
 
       return Right(newCategory);
@@ -335,7 +337,7 @@ class CategoryRepositoryImpl implements CategoryRepository {
       await _database.syncQueueDao.enqueueUpdate(
         tableName: 'categories',
         recordId: updatedCategory.id,
-        data: CategoryModel.fromEntity(updatedCategory).toJson().toString(),
+        data: jsonEncode(CategoryModel.fromEntity(updatedCategory).toJson()),
       );
 
       return Right(updatedCategory);
@@ -492,7 +494,7 @@ class CategoryRepositoryImpl implements CategoryRepository {
         await _database.syncQueueDao.enqueueCreate(
           tableName: 'categories',
           recordId: category.id,
-          data: CategoryModel.fromEntity(category).toJson().toString(),
+          data: jsonEncode(CategoryModel.fromEntity(category).toJson()),
         );
       }
 

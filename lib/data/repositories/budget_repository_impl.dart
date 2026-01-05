@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dartz/dartz.dart';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
@@ -140,7 +142,7 @@ class BudgetRepositoryImpl implements BudgetRepository {
       await _database.syncQueueDao.enqueueCreate(
         tableName: 'budgets',
         recordId: newBudget.id,
-        data: BudgetModel.fromEntity(newBudget).toJson().toString(),
+        data: jsonEncode(BudgetModel.fromEntity(newBudget).toJson()),
       );
 
       return Right(newBudget);
@@ -183,7 +185,7 @@ class BudgetRepositoryImpl implements BudgetRepository {
       await _database.syncQueueDao.enqueueUpdate(
         tableName: 'budgets',
         recordId: updatedBudget.id,
-        data: BudgetModel.fromEntity(updatedBudget).toJson().toString(),
+        data: jsonEncode(BudgetModel.fromEntity(updatedBudget).toJson()),
       );
 
       return Right(updatedBudget);
@@ -715,9 +717,9 @@ class BudgetRepositoryImpl implements BudgetRepository {
       await _database.syncQueueDao.enqueueUpdate(
         tableName: 'budgets',
         recordId: budgetId,
-        data: BudgetModel.fromEntity(
+        data: jsonEncode(BudgetModel.fromEntity(
           _entryToEntity(updatedEntry),
-        ).toJson().toString(),
+        ).toJson()),
       );
 
       return Right(_entryToEntity(updatedEntry));
@@ -800,9 +802,9 @@ class BudgetRepositoryImpl implements BudgetRepository {
       await _database.syncQueueDao.enqueueUpdate(
         tableName: 'budgets',
         recordId: budgetId,
-        data: BudgetModel.fromEntity(
+        data: jsonEncode(BudgetModel.fromEntity(
           _entryToEntity(updatedEntry),
-        ).toJson().toString(),
+        ).toJson()),
       );
 
       return Right(_entryToEntity(updatedEntry));
