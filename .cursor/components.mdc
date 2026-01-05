@@ -431,6 +431,65 @@ class FeatureBloc extends Bloc<FeatureEvent, FeatureState> {
 }
 ```
 
+### SyncBloc Example (Implemented)
+
+The SyncBloc manages data synchronization between local Drift database and remote Firestore.
+
+**Location**: `lib/presentation/bloc/sync/`
+
+**Files**:
+- `sync_bloc.dart` - Main BLoC with SyncManager and ConnectivityService
+- `sync_event.dart` - 7 events with SyncStatus enum
+- `sync_state.dart` - 6 states with SyncErrorType enum
+- `sync_bloc_exports.dart` - Barrel export
+
+**Events**:
+```dart
+// sync_event.dart
+SyncInitialized()           // Initialize and start listening
+SyncAllRequested()          // Full sync (push + pull)
+SyncPushRequested()         // Push local changes only
+SyncPullRequested()         // Pull remote changes only
+SyncTableRequested(table)   // Sync specific table
+SyncRetryFailedRequested()  // Retry failed sync items
+SyncStateUpdated(status)    // Internal: handle state changes
+SyncPendingCountRequested() // Get pending items count
+```
+
+**States**:
+```dart
+// sync_state.dart
+SyncInitial()                                 // Before initialization
+SyncOffline(pendingCount, lastSyncTime)       // Device offline
+SyncInProgress(processedItems, totalItems)    // Sync in progress
+SyncCompleted(syncedAt, itemsSynced)          // Success
+SyncPartialSuccess(successCount, failedCount) // Partial success
+SyncError(message, type, pendingCount)        // Error with type
+```
+
+**Dashboard Integration**:
+```dart
+// In DashboardScreen
+late final SyncBloc _syncBloc;
+
+@override
+void initState() {
+  super.initState();
+  _syncBloc = sl<SyncBloc>();
+  _syncBloc.add(const SyncInitialized());
+}
+
+// Sync button in app bar popup menu
+PopupMenuItem<String>(
+  value: 'sync',
+  enabled: !isSyncing,
+  child: Row(children: [
+    Icon(isSyncing ? Icons.sync : Icons.cloud_sync),
+    Text(isSyncing ? 'Syncing...' : 'Sync Now'),
+  ]),
+)
+```
+
 ---
 
 ## Entity Creation

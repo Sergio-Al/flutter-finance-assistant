@@ -36,90 +36,141 @@ class TransactionBulkActionsBar extends StatelessWidget {
       curve: Curves.easeOutCubic,
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 16,
+            offset: const Offset(0, -4),
           ),
         ],
       ),
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(
+          padding: const EdgeInsets.fromLTRB(12, 16, 12, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              // Close button
-              _ActionIconButton(
-                icon: Icons.close,
-                onTap: onClose,
-                isDark: isDark,
-              ),
-              const SizedBox(width: 12),
+              // Top row: Close button, count badge, and select all
+              Row(
+                children: [
+                  // Close button
+                  _ActionIconButton(
+                    icon: Icons.close,
+                    onTap: onClose,
+                    isDark: isDark,
+                  ),
+                  const SizedBox(width: 12),
 
-              // Selection info
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+                  // Selection count badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryLight.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '$selectedCount',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.primaryLight,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'selected',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: AppTheme.primaryLight,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Total amount (if available)
+                  if (totalAmount != null) ...[
+                    const SizedBox(width: 12),
                     Text(
-                      '$selectedCount selected',
+                      '\$${totalAmount!.abs().toStringAsFixed(2)}',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: isDark ? Colors.white : Colors.black87,
+                        color: isDark ? Colors.grey[400] : Colors.grey[600],
                       ),
                     ),
-                    if (totalAmount != null)
-                      Text(
-                        'Total: \$${totalAmount!.abs().toStringAsFixed(2)}',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: isDark ? Colors.grey[500] : Colors.grey[600],
-                        ),
-                      ),
                   ],
-                ),
+
+                  const Spacer(),
+
+                  // Select all button
+                  if (onSelectAll != null)
+                    TextButton.icon(
+                      onPressed: onSelectAll,
+                      icon: Icon(
+                        isAllSelected ? Icons.deselect : Icons.select_all,
+                        size: 18,
+                      ),
+                      label: Text(isAllSelected ? 'Deselect' : 'Select All'),
+                      style: TextButton.styleFrom(
+                        foregroundColor:
+                            isDark ? Colors.grey[400] : Colors.grey[700],
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
+                ],
               ),
 
-              // Action buttons
-              if (onSelectAll != null)
-                _ActionButton(
-                  icon: isAllSelected ? Icons.deselect : Icons.select_all,
-                  label: isAllSelected ? 'None' : 'All',
-                  onTap: onSelectAll!,
-                  isDark: isDark,
-                ),
-              if (onCategorize != null) ...[
-                const SizedBox(width: 8),
-                _ActionButton(
-                  icon: Icons.category,
-                  label: 'Category',
-                  onTap: onCategorize!,
-                  isDark: isDark,
-                ),
-              ],
-              if (onExport != null) ...[
-                const SizedBox(width: 8),
-                _ActionButton(
-                  icon: Icons.file_download_outlined,
-                  label: 'Export',
-                  onTap: onExport!,
-                  isDark: isDark,
-                ),
-              ],
-              if (onDelete != null) ...[
-                const SizedBox(width: 8),
-                _ActionButton(
-                  icon: Icons.delete_outline,
-                  label: 'Delete',
-                  onTap: onDelete!,
-                  isDark: isDark,
-                  isDestructive: true,
-                ),
-              ],
+              const SizedBox(height: 12),
+
+              // Bottom row: Action buttons
+              Row(
+                children: [
+                  if (onCategorize != null)
+                    Expanded(
+                      child: _ActionButton(
+                        icon: Icons.category_outlined,
+                        label: 'Category',
+                        onTap: onCategorize!,
+                        isDark: isDark,
+                      ),
+                    ),
+                  if (onCategorize != null && onExport != null)
+                    const SizedBox(width: 8),
+                  if (onExport != null)
+                    Expanded(
+                      child: _ActionButton(
+                        icon: Icons.file_download_outlined,
+                        label: 'Export',
+                        onTap: onExport!,
+                        isDark: isDark,
+                      ),
+                    ),
+                  if ((onCategorize != null || onExport != null) &&
+                      onDelete != null)
+                    const SizedBox(width: 8),
+                  if (onDelete != null)
+                    Expanded(
+                      child: _ActionButton(
+                        icon: Icons.delete_outline,
+                        label: 'Delete',
+                        onTap: onDelete!,
+                        isDark: isDark,
+                        isDestructive: true,
+                      ),
+                    ),
+                ],
+              ),
             ],
           ),
         ),
@@ -184,31 +235,33 @@ class _ActionButton extends StatelessWidget {
         ? AppTheme.expense.withValues(alpha: 0.1)
         : (isDark ? Colors.grey[800] : Colors.grey[100]);
 
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        onTap();
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 16, color: color),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: color,
+    return Material(
+      color: bgColor,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          onTap();
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 18, color: color),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

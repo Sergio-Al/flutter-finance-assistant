@@ -429,6 +429,13 @@ cd ios && pod install --repo-update && cd ..
 flutter run
 ```
 
+### Find local database file
+In iOS Simulator run the following command to locate the Drift database file:
+```bash
+# Find the app's data directory
+find ~/Library/Developer/CoreSimulator/Devices -name "*.sqlite" -o -name "*.db" 2>/dev/null | grep -i finance
+```
+
 ### Troubleshooting iOS Build
 
 If you encounter iOS build errors related to deployment target mismatch:

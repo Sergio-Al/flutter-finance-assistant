@@ -1,14 +1,24 @@
 import 'package:get_it/get_it.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:flutter_finance_assistant/core/sync/connectivity_service.dart';
+import 'package:flutter_finance_assistant/core/sync/sync_manager.dart';
+import 'package:flutter_finance_assistant/core/sync/sync_queue_processor.dart';
+import 'package:flutter_finance_assistant/core/sync/sync_repository.dart';
+import 'package:flutter_finance_assistant/core/sync/sync_status_notifier.dart';
 import 'package:flutter_finance_assistant/data/datasources/local/app_database.dart';
 import 'package:flutter_finance_assistant/data/datasources/remote/budget_remote_datasource.dart';
 import 'package:flutter_finance_assistant/data/datasources/remote/category_remote_datasource.dart';
 import 'package:flutter_finance_assistant/data/datasources/remote/firebase_service.dart';
 import 'package:flutter_finance_assistant/data/datasources/remote/transaction_remote_datasource.dart';
 import 'package:flutter_finance_assistant/data/datasources/remote/user_remote_datasource.dart';
+import 'package:flutter_finance_assistant/data/datasources/remote/account_remote_datasource.dart';
+import 'package:flutter_finance_assistant/data/datasources/remote/recurring_rule_remote_datasource.dart';
+import 'package:flutter_finance_assistant/data/datasources/remote/receipt_remote_datasource.dart';
 import 'package:flutter_finance_assistant/data/repositories/auth_repository_impl.dart';
 import 'package:flutter_finance_assistant/data/repositories/budget_repository_impl.dart';
 import 'package:flutter_finance_assistant/data/repositories/category_repository_impl.dart';
+import 'package:flutter_finance_assistant/data/repositories/sync_repository_impl.dart';
 import 'package:flutter_finance_assistant/data/repositories/transaction_repository_impl.dart';
 import 'package:flutter_finance_assistant/data/repositories/user_repository_impl.dart';
 import 'package:flutter_finance_assistant/domain/repositories/auth_repository.dart';
@@ -24,12 +34,21 @@ import 'package:flutter_finance_assistant/domain/usecases/user/user_usecases.dar
 import 'package:flutter_finance_assistant/presentation/bloc/auth/auth_bloc.dart';
 import 'package:flutter_finance_assistant/presentation/bloc/budget/budget_bloc.dart';
 import 'package:flutter_finance_assistant/presentation/bloc/category/category_bloc.dart';
+import 'package:flutter_finance_assistant/presentation/bloc/sync/sync_bloc_exports.dart';
 import 'package:flutter_finance_assistant/presentation/bloc/transaction/transaction_bloc.dart';
 
 final sl = GetIt.instance;
 
 /// Initialize all dependencies
 Future<void> initDependencies() async {
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Core - External Dependencies
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // SharedPreferences (required for sync timestamps)
+  final sharedPreferences = await SharedPreferences.getInstance();
+  sl.registerLazySingleton<SharedPreferences>(() => sharedPreferences);
+
   // ═══════════════════════════════════════════════════════════════════════════
   // Core - Database & Services
   // ═══════════════════════════════════════════════════════════════════════════
@@ -40,9 +59,16 @@ Future<void> initDependencies() async {
   // Firebase Service (shared across all remote datasources)
   sl.registerLazySingleton<FirebaseService>(() => FirebaseService());
 
+  // Connectivity Service (for monitoring network state)
+  sl.registerLazySingleton<ConnectivityService>(() => ConnectivityService());
+
   // ═══════════════════════════════════════════════════════════════════════════
   // Data Sources - Remote
   // ═══════════════════════════════════════════════════════════════════════════
+
+  sl.registerLazySingleton<AccountRemoteDataSource>(
+    () => AccountRemoteDataSourceImpl(firebaseService: sl()),
+  );
 
   sl.registerLazySingleton<BudgetRemoteDataSource>(
     () => BudgetRemoteDataSourceImpl(firebaseService: sl()),
@@ -58,6 +84,14 @@ Future<void> initDependencies() async {
 
   sl.registerLazySingleton<TransactionRemoteDataSource>(
     () => TransactionRemoteDataSourceImpl(firebaseService: sl()),
+  );
+
+  sl.registerLazySingleton<RecurringRuleRemoteDataSource>(
+    () => RecurringRuleRemoteDataSourceImpl(firebaseService: sl()),
+  );
+
+  sl.registerLazySingleton<ReceiptRemoteDataSource>(
+    () => ReceiptRemoteDataSourceImpl(firebaseService: sl()),
   );
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -95,6 +129,42 @@ Future<void> initDependencies() async {
     () => TransactionRepositoryImpl(
       database: sl(),
       remoteDataSource: sl<TransactionRemoteDataSource>(),
+    ),
+  );
+
+  // Sync Repository (bridges local and remote for sync operations)
+  sl.registerLazySingleton<SyncRepository>(
+    () => SyncRepositoryImpl(
+      database: sl(),
+      firebaseService: sl(),
+      accountRemoteDataSource: sl(),
+      categoryRemoteDataSource: sl(),
+      transactionRemoteDataSource: sl(),
+      budgetRemoteDataSource: sl(),
+      recurringRuleRemoteDataSource: sl(),
+      receiptRemoteDataSource: sl(),
+      prefs: sl(),
+    ),
+  );
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Sync Infrastructure
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // Sync Status Notifier (for UI updates)
+  sl.registerLazySingleton<SyncStatusNotifier>(() => SyncStatusNotifier());
+
+  // Sync Queue Processor (processes individual sync items)
+  sl.registerLazySingleton<SyncQueueProcessor>(
+    () => SyncQueueProcessor(syncRepository: sl()),
+  );
+
+  // Sync Manager (central coordination of sync operations)
+  sl.registerLazySingleton<SyncManager>(
+    () => SyncManager(
+      connectivityService: sl(),
+      queueProcessor: sl(),
+      statusNotifier: sl(),
     ),
   );
 
@@ -229,5 +299,9 @@ Future<void> initDependencies() async {
       getSpendingSummary: sl(),
       watchRecentTransactions: sl(),
     ),
+  );
+
+  sl.registerFactory(
+    () => SyncBloc(syncManager: sl(), connectivityService: sl()),
   );
 }

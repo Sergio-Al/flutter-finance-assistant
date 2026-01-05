@@ -239,7 +239,7 @@ class _TransactionListViewState extends State<_TransactionListView> {
           // Quick Stats Row
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
               child: TransactionQuickStatsRow(
                 stats: quickStats,
                 scrollable: false,
@@ -455,17 +455,11 @@ class _TransactionListViewState extends State<_TransactionListView> {
   // ═══════════════════════════════════════════════════════════════════════════
 
   Widget _buildFAB(BuildContext context) {
-    return FloatingActionButton.extended(
+    return FloatingActionButton(
       heroTag: 'transaction_list_fab',
       onPressed: () => _showCreateSheet(context),
       backgroundColor: AppTheme.primaryLight,
-      label: const Text(
-        '+',
-        style: TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
+      child: const Icon(Icons.add),
     );
   }
 

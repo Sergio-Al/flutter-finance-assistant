@@ -180,6 +180,7 @@ class SyncQueueDao extends DatabaseAccessor<AppDatabase>
   /// Get count of pending operations
   Future<int> getPendingCount() async {
     final result = await getPendingOperations();
+    print('Pending operations count: ${result.length}');
     return result.length;
   }
 

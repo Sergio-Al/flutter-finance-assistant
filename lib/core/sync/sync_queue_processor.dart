@@ -42,6 +42,10 @@ class SyncQueueProcessor {
       'SyncQueueProcessor: Processing item ${item.id} - '
       '${item.operation} on ${item.tableName}',
     );
+    print('SyncQueueProcessor: Processing item ${item.id} - '
+        '${item.operation} on ${item.tableName}');
+    print('TESTING SYNC QUEUE PROCESSOR ${item.toMap()}');
+    
 
     try {
       // Determine operation type and execute
@@ -110,6 +114,8 @@ class SyncQueueProcessor {
 
   /// Process a create operation.
   Future<void> _processCreate(SyncQueueItem item) async {
+    // print payload to debug
+    print('Processing create with payload: ${item.payload}');
     final payload = jsonDecode(item.payload) as Map<String, dynamic>;
     await _syncRepository.pushToRemote(
       tableName: item.tableName,

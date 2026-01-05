@@ -342,11 +342,16 @@ lib/
 │       │   ├── budget_event.dart          # 16 budget events
 │       │   ├── budget_state.dart          # 7 states + BudgetOperationType, BudgetErrorType
 │       │   └── budget_bloc.dart           # Full BLoC with Use Case Composition
-│       └── category/                      # CATEGORY BLOC (COMPLETE)
-│           ├── category_bloc_exports.dart # Barrel export
-│           ├── category_event.dart        # 18 category events
-│           ├── category_state.dart        # 5 category states + CategoryErrorType
-│           └── category_bloc.dart         # Full BLoC with watch and search
+│       ├── category/                      # CATEGORY BLOC (COMPLETE)
+│       │   ├── category_bloc_exports.dart # Barrel export
+│       │   ├── category_event.dart        # 18 category events
+│       │   ├── category_state.dart        # 5 category states + CategoryErrorType
+│       │   └── category_bloc.dart         # Full BLoC with watch and search
+│       └── sync/                          # SYNC BLOC (COMPLETE)
+│           ├── sync_bloc_exports.dart     # Barrel export
+│           ├── sync_event.dart            # 7 sync events (SyncStatus enum)
+│           ├── sync_state.dart            # 6 sync states + SyncErrorType
+│           └── sync_bloc.dart             # Full BLoC with SyncManager integration
 │
 └── main.dart                  # App entry point with BlocProvider
 ```
@@ -383,6 +388,7 @@ lib/
 - [x] **Budget Screens** (BudgetListScreen, BudgetDetailScreen with glassmorphism UI)
 - [x] **Budget Widgets** (BudgetItemCard with category icon, BudgetSummaryCard, CreateBudgetSheet with CategorySelector)
 - [x] **Category BLoC** (18 events, 5 states, full BLoC with watch and search)
+- [x] **Sync BLoC** (7 events, 6 states, full BLoC with SyncManager and ConnectivityService integration)
 - [x] **CategorySelector Widget** (Reusable category picker with icon grid)
 - [x] **Use Case Composition** (GetBudgetsWithRelationsUseCase - joins Budget + Category)
 
@@ -484,6 +490,7 @@ App Start → SplashScreen
 | `BudgetBloc` | `Factory` (uses GetBudgetsWithRelationsUseCase) |
 | `CategoryBloc` | `Factory` (new instance per screen) |
 | `TransactionBloc` | `Factory` (uses 4 transaction use cases) |
+| `SyncBloc` | `Factory` (uses SyncManager and ConnectivityService) |
 
 ### ✅ Budget Presentation Layer (Complete)
 
@@ -530,6 +537,16 @@ App Start → SplashScreen
 | **TransactionExportSheet** | Export options (CSV, PDF) |
 | **TransactionBulkActionsBar** | Bulk selection actions (delete, categorize, export) |
 | **TransactionSplitSheet** | Split transaction between categories |
+
+### ✅ Sync Presentation Layer (Complete)
+
+| Component | Description |
+|-----------|-------------|
+| **SyncBloc** | Full BLoC with 7 events, 6 states, SyncManager and ConnectivityService integration |
+| **SyncEvent** | Events: `SyncInitialized`, `SyncAllRequested`, `SyncPushRequested`, `SyncPullRequested`, `SyncTableRequested`, `SyncRetryFailedRequested`, `SyncStateUpdated`, `SyncPendingCountRequested` |
+| **SyncState** | States: `SyncInitial`, `SyncOffline`, `SyncInProgress`, `SyncCompleted`, `SyncPartialSuccess`, `SyncError` |
+| **SyncErrorType** | Error types: `noConnection`, `serverError`, `authRequired`, `conflictError`, `unknown` |
+| **DashboardScreen Sync UI** | Sync status indicator in app bar, sync button in popup menu, snackbar feedback for sync states |
 
 ### 🚧 In Progress
 - [ ] Chat screens UI (placeholder in MainScreen)
@@ -641,6 +658,9 @@ App Start → SplashScreen
 | `lib/presentation/bloc/transaction/transaction_bloc.dart` | Transaction BLoC with filtering, bulk actions |
 | `lib/presentation/bloc/transaction/transaction_event.dart` | Transaction events (Load, Filter, CRUD, Bulk) |
 | `lib/presentation/bloc/transaction/transaction_state.dart` | Transaction states + error handling |
+| `lib/presentation/bloc/sync/sync_bloc.dart` | Sync BLoC with SyncManager, connectivity monitoring |
+| `lib/presentation/bloc/sync/sync_event.dart` | 7 sync events (Initialized, AllRequested, Push, Pull, Table, Retry, StateUpdated) |
+| `lib/presentation/bloc/sync/sync_state.dart` | 6 sync states (Initial, Offline, InProgress, Completed, PartialSuccess, Error) |
 
 ### Dependency Injection
 | File | Purpose |
@@ -675,6 +695,53 @@ FIREBASE_PROJECT_ID=your_project_id
 ---
 
 ## Changelog
+
+### 2026-01-04: SyncBloc Implementation
+
+**Feature**: Added SyncBloc for managing data synchronization state in the UI.
+
+**Files Created**:
+1. `lib/presentation/bloc/sync/sync_bloc.dart`
+   - BLoC with SyncManager and ConnectivityService integration
+   - Handles 8 event types for sync operations
+   - Listens to SyncManager state stream and connectivity changes
+
+2. `lib/presentation/bloc/sync/sync_event.dart`
+   - 8 events: `SyncInitialized`, `SyncAllRequested`, `SyncPushRequested`, `SyncPullRequested`, `SyncTableRequested`, `SyncRetryFailedRequested`, `SyncStateUpdated`, `SyncPendingCountRequested`
+   - `SyncStatus` enum for internal state tracking
+
+3. `lib/presentation/bloc/sync/sync_state.dart`
+   - 6 states: `SyncInitial`, `SyncOffline`, `SyncInProgress`, `SyncCompleted`, `SyncPartialSuccess`, `SyncError`
+   - `SyncErrorType` enum for categorized error handling
+
+4. `lib/presentation/bloc/sync/sync_bloc_exports.dart`
+   - Barrel export for all sync BLoC files
+
+**Files Modified**:
+1. `lib/core/di/injection_container.dart`
+   - Added SyncBloc factory registration with SyncManager and ConnectivityService dependencies
+
+2. `lib/presentation/screens/dashboard/dashboard_screen.dart`
+   - Added SyncBloc initialization in `initState()`
+   - Added sync status indicator in app bar subtitle
+   - Added sync button in user popup menu
+   - Added BlocListener for sync state feedback (snackbars)
+   - Shows syncing progress, offline status, and error states
+
+**Usage**:
+```dart
+// Initialize sync on screen load
+_syncBloc = sl<SyncBloc>();
+_syncBloc.add(const SyncInitialized());
+
+// Trigger manual sync
+_syncBloc.add(const SyncAllRequested());
+
+// Retry failed items
+_syncBloc.add(const SyncRetryFailedRequested());
+```
+
+---
 
 ### 2025-12-28: Transaction Creation FK Fix
 

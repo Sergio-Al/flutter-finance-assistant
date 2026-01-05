@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:flutter_finance_assistant/core/constants/app_constants.dart';
 import 'package:flutter_finance_assistant/core/errors/exceptions.dart';
+import 'package:flutter_finance_assistant/core/utils/app_logger.dart';
 import 'package:flutter_finance_assistant/data/datasources/remote/firebase_service.dart';
 import 'package:flutter_finance_assistant/data/models/transaction_model.dart';
 
@@ -134,6 +135,8 @@ class TransactionRemoteDataSourceImpl implements TransactionRemoteDataSource {
     String userId,
     TransactionModel transaction,
   ) async {
+    AppLogger.info( 'Creating transaction: ${transaction.id}');
+    print('Creating transaction: ${transaction.id}');
     return _firebaseService.handleFirestoreOperation(
       () async {
         final docRef = _firebaseService
